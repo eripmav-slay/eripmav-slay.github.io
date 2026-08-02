@@ -79,11 +79,13 @@ async function loadAll(){
   }
   btn.disabled = false;
   setStatus("");
+
+  populateTypeFilter();
+  render();
+
   if(errors.length){
     showFetchError(errors);
   }
-  populateTypeFilter();
-  render();
 }
 
 function showFetchError(errors){
