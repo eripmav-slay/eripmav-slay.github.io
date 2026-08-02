@@ -2,7 +2,17 @@
 <html lang="ja">
   <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src https://pvpmanager.dark-gaming.com; connect-src https://pvpcapi.dark-gaming.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <meta http-equiv="Content-Security-Policy"
+    content="
+    default-src 'self';
+    img-src 'self' https://pvpmanager.dark-gaming.com data:;
+    connect-src https://pvpcapi.dark-gaming.com;
+    style-src 'self' 'unsafe-inline';
+    script-src 'self' 'unsafe-inline';
+    object-src 'none';
+    base-uri 'none';
+    form-action 'none';
+  ">
   <title>Eripvp Data</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="stylesheet" href="style.css">
