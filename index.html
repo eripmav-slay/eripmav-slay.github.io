@@ -28,6 +28,9 @@
     <select id="typeFilter" onchange="render()">
       <option value="">全タイプ(all type)</option>
     </select>
+    <select id="slotFilter" onchange="render()">
+      <option value="">全部位(all slot)</option>
+    </select>
     <span class="chip" id="bannedChip" onclick="toggleShowBanned()">Bannedも表示</span>
     <span class="count" id="count"></span>
   </div>
@@ -38,6 +41,9 @@
 
   <footer id="footer">データソース: pvpcapi.dark-gaming.com / 画像: pvpmanager.dark-gaming.com</footer>
 
+  <script src="armor-slot-head.js"></script>
+  <script src="armor-slot-body.js"></script>
+  <script src="armor-slot-legs.js"></script>
   <script src="app.js"></script>
   </body>
 </html>

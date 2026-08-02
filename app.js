@@ -21,6 +21,7 @@ document.querySelectorAll(".tab").forEach(t => {
     if(currentCat !== "calculator"){
       document.getElementById("search").value = "";
       populateTypeFilter();
+      populateSlotFilter();
     }
     render();
   });
@@ -81,6 +82,7 @@ async function loadAll(){
   setStatus("");
 
   populateTypeFilter();
+  populateSlotFilter();
   render();
 
   if(errors.length){
@@ -149,6 +151,24 @@ function populateTypeFilter(){
   sel.innerHTML = opts.join("");
 }
 
+function populateSlotFilter(){
+  const sel = document.getElementById("slotFilter");
+  if(currentCat !== "armorPieces"){
+    sel.style.display = "none";
+    sel.value = "";
+    return;
+  }
+  sel.style.display = "inline-block";
+  const opts = [
+    ["", "全部位(all slot)"],
+    ["head", "頭(head)"],
+    ["body", "胴(body)"],
+    ["legs", "足(leg)"],
+    ["other", "未分類(Uncategorized)"]
+  ];
+  sel.innerHTML = opts.map(([v,l]) => `<option value="${escapeHtml(v)}">${escapeHtml(l)}</option>`).join("");
+}
+
 function render(){
   if(currentCat === "calculator"){ renderCalculator(); return; }
   const main = document.getElementById("main");
@@ -161,11 +181,13 @@ function render(){
   const cols = getColumns(currentCat);
   const q = document.getElementById("search").value.trim().toLowerCase();
   const typeF = currentCat === "weapons" ? document.getElementById("typeFilter").value : "";
+  const slotF = currentCat === "armorPieces" ? document.getElementById("slotFilter").value : "";
 
   let filtered = items.filter(it => {
     if(!showBanned && it.Banned) return false;
     if(q && !(it.Name||"").toLowerCase().includes(q)) return false;
     if(typeF && it.WeaponType !== typeF) return false;
+    if(slotF && classifySlot(it.Name) !== slotF) return false;
     return true;
   });
 
@@ -235,11 +257,31 @@ function escapeHtml(s){
 
 let calcSelection = { A:{head:null, body:null, legs:null}, B:{head:null, body:null, legs:null} };
 
+// armor-slot-head.js の HEAD_KEYWORDS / HEAD_ITEM_NAMES を使って判定用のデータを組み立てる。
+// 完全一致リストはSetに、単語群は\bで区切ったOR正規表現にまとめておく(毎回組み立て直さない)。
+// "i"フラグをつけているので、キーワードを大文字で書いても小文字で書いても関係なく一致する。
+const HEAD_ITEM_NAMES_LOWER = new Set(HEAD_ITEM_NAMES.map(s => s.toLowerCase()));
+const HEAD_KEYWORD_REGEX = new RegExp(
+  HEAD_KEYWORDS.map(w => `\\b${w}\\b`).join("|"), "i"
+);
+
+// armor-slot-body.js の BODY_KEYWORDS / BODY_ITEM_NAMES も同じ組み立て方。
+const BODY_ITEM_NAMES_LOWER = new Set(BODY_ITEM_NAMES.map(s => s.toLowerCase()));
+const BODY_KEYWORD_REGEX = new RegExp(
+  BODY_KEYWORDS.map(w => `\\b${w}\\b`).join("|"), "i"
+);
+
+// armor-slot-legs.js の LEGS_KEYWORDS / LEGS_ITEM_NAMES も同じ組み立て方。
+const LEGS_ITEM_NAMES_LOWER = new Set(LEGS_ITEM_NAMES.map(s => s.toLowerCase()));
+const LEGS_KEYWORD_REGEX = new RegExp(
+  LEGS_KEYWORDS.map(w => `\\b${w}\\b`).join("|"), "i"
+);
+
 function classifySlot(name){
   const n = (name||"").toLowerCase();
-  if(/helmet|headgear|mask|hood|hat\b|cap\b|antlers|horn|headpiece|hairpin|wig/.test(n)) return "head";
-  if(/breastplate|chainmail|plate mail|scalemail|scale mail|robe|shirt|jerkin|vest|shell|plating|tunic|torso|dress|\bgi\b/.test(n)) return "body";
-  if(/leggings|greaves|pants|trousers|\bleg\b/.test(n)) return "legs";
+  if(HEAD_ITEM_NAMES_LOWER.has(n) || HEAD_KEYWORD_REGEX.test(n)) return "head";
+  if(BODY_ITEM_NAMES_LOWER.has(n) || BODY_KEYWORD_REGEX.test(n)) return "body";
+  if(LEGS_ITEM_NAMES_LOWER.has(n) || LEGS_KEYWORD_REGEX.test(n)) return "legs";
   return "other";
 }
 
