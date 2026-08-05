@@ -301,7 +301,7 @@ function renderCalculator(){
     const rows = slots.map(([slot,label]) => `
       <div class="calc-row">
         <label>${label}</label>
-        <input type="text" list="dl-${id}-${slot}" placeholder="名前で検索..." data-set="${id}" data-slot="${slot}" oninput="onCalcInput(this)">
+        <input type="text" list="dl-${id}-${slot}" placeholder="名前で検索..." value="${escapeHtml(calcSelection[id][slot]?.Name || '')}" data-set="${id}" data-slot="${slot}" oninput="onCalcInput(this)">
         <datalist id="dl-${id}-${slot}">
           ${pool.filter(a=>classifySlot(a.Name)===slot).sort((a,b)=>a.Name.localeCompare(b.Name)).map(a=>`<option value="${escapeHtml(a.Name)}">`).join("")}
         </datalist>
