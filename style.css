@@ -131,6 +131,24 @@ td.icon img{width:26px; height:26px; object-fit:contain; image-rendering:pixelat
 .badge.summon{color:var(--r-summon);}
 .badge.banned{color:var(--r-banned); font-weight:700;}
 .badge.ok{color:var(--r-ok);}
+.calc-toggle{
+  display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text);
+  margin:4px 0 16px; cursor:pointer; user-select:none;
+}
+.calc-toggle input{width:auto; cursor:pointer;}
+.calc-acc-heading{margin:20px 0 12px; font-size:14px; font-weight:600; color:var(--muted); border-top:1px solid var(--border); padding-top:16px;}
+.calc-acc-row{display:flex; gap:8px; align-items:center;}
+.calc-acc-row input{flex:1;}
+.calc-acc-row select{width:150px; flex-shrink:0; font-size:12px;}
+.calc-misc-wrap{display:flex; gap:20px; flex-wrap:wrap; padding:16px 20px; border-top:1px solid var(--border);}
+.calc-misc-col{flex:1; min-width:200px;}
+.calc-misc-col h4{margin:0 0 8px; font-size:12px; color:var(--muted); font-weight:600;}
+.calc-misc-item{display:block; font-size:13px; margin-bottom:4px;}
+.calc-misc-empty{font-size:13px; color:var(--muted);}.calc-copy-controls{
+  display:flex; flex-direction:column; gap:10px; justify-content:center;
+  flex:0 0 120px;
+}
+.calc-copy-controls button{white-space:nowrap; font-size:12px; padding:9px 10px;}
 .calc-wrap{display:flex; gap:28px; flex-wrap:wrap; margin-top:20px;}
 .calc-set{
   flex:1; min-width:360px; background:var(--panel); border-radius:2px; padding:24px;
@@ -154,7 +172,11 @@ td.icon img{width:26px; height:26px; object-fit:contain; image-rendering:pixelat
 .calc-result table{margin:0; font-size:15px; box-shadow:none;}
 .calc-result th, .calc-result td{padding:12px 16px;}
 .calc-result thead th{position:static; font-size:13px;}
+.calc-subhead td{
+  padding:18px 16px 8px; font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--muted); border-bottom:1px solid var(--border);
+}
 .calc-diff-pos{color:var(--r-ok); font-weight:600;}
 .calc-diff-neg{color:var(--r-banned); font-weight:600;}
 .diffup{color:var(--r-ok);}
-.diffdown{co
+.diffdown{color:var(--r-banned);}

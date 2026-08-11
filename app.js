@@ -37,7 +37,17 @@ function toggleShowBanned(){
   render();
 }
 
-function setStatus(html){ document.getElementById("status").innerHTML = html; }
+function setStatus(text, spinning = false){
+  const el = document.getElementById("status");
+  el.innerHTML = "";
+  if(spinning){
+    const spinner = document.createElement("span");
+    spinner.className = "spinner";
+    el.appendChild(spinner);
+    el.appendChild(document.createTextNode(" "));
+  }
+  el.appendChild(document.createTextNode(text));
+}
 
 async function fetchAllPages(catKey){
   const cfg = CATS[catKey];
@@ -255,23 +265,25 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
-let calcSelection = { A:{head:null, body:null, legs:null}, B:{head:null, body:null, legs:null} };
+let calcSelection = {
+  A:{head:null, body:null, legs:null, accessories:Array(7).fill(null), modifiers:Array(7).fill(""), sake:false},
+  B:{head:null, body:null, legs:null, accessories:Array(7).fill(null), modifiers:Array(7).fill(""), sake:false}
+};
 
-// armor-slot-head.js の HEAD_KEYWORDS / HEAD_ITEM_NAMES を使って判定用のデータを組み立てる。
-// 完全一致リストはSetに、単語群は\bで区切ったOR正規表現にまとめておく(毎回組み立て直さない)。
-// "i"フラグをつけているので、キーワードを大文字で書いても小文字で書いても関係なく一致する。
+// armor-slot-head.js の HEAD_KEYWORDS / HEAD_ITEM_NAMES を使って判定用
+// 完全一致リストはSetに、単語群は\bで区切ったOR正規表現にまとめる
 const HEAD_ITEM_NAMES_LOWER = new Set(HEAD_ITEM_NAMES.map(s => s.toLowerCase()));
 const HEAD_KEYWORD_REGEX = new RegExp(
   HEAD_KEYWORDS.map(w => `\\b${w}\\b`).join("|"), "i"
 );
 
-// armor-slot-body.js の BODY_KEYWORDS / BODY_ITEM_NAMES も同じ組み立て方。
+// armor-slot-body.js の BODY_KEYWORDS / BODY_ITEM_NAMES も同じ
 const BODY_ITEM_NAMES_LOWER = new Set(BODY_ITEM_NAMES.map(s => s.toLowerCase()));
 const BODY_KEYWORD_REGEX = new RegExp(
   BODY_KEYWORDS.map(w => `\\b${w}\\b`).join("|"), "i"
 );
 
-// armor-slot-legs.js の LEGS_KEYWORDS / LEGS_ITEM_NAMES も同じ組み立て方。
+// armor-slot-legs.js の LEGS_KEYWORDS / LEGS_ITEM_NAMES も同じ
 const LEGS_ITEM_NAMES_LOWER = new Set(LEGS_ITEM_NAMES.map(s => s.toLowerCase()));
 const LEGS_KEYWORD_REGEX = new RegExp(
   LEGS_KEYWORDS.map(w => `\\b${w}\\b`).join("|"), "i"
@@ -297,7 +309,7 @@ function renderCalculator(){
     return;
   }
   const slots = [["head","頭(head)"],["body","胴(body)"],["legs","足(leg)"]];
-  function setPanel(id){
+function setPanel(id){
     const rows = slots.map(([slot,label]) => `
       <div class="calc-row">
         <label>${label}</label>
@@ -306,16 +318,52 @@ function renderCalculator(){
           ${pool.filter(a=>classifySlot(a.Name)===slot).sort((a,b)=>a.Name.localeCompare(b.Name)).map(a=>`<option value="${escapeHtml(a.Name)}">`).join("")}
         </datalist>
       </div>`).join("");
-    return `<div class="calc-set"><h3>set${id}</h3>${rows}</div>`;
+
+    const accRows = Array.from({length:7}).map((_, i) => `
+      <div class="calc-row calc-acc-row">
+        <input type="text" list="dl-${id}-acc-${i}" placeholder="アクセサリー ${i+1}" value="${escapeHtml(calcSelection[id].accessories[i]?.name || '')}" data-set="${id}" data-accidx="${i}" oninput="onCalcAccessoryInput(this)">
+        <datalist id="dl-${id}-acc-${i}">
+          ${ACCESSORIES.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`<option value="${escapeHtml(a.name)}">`).join("")}
+        </datalist>
+        <select data-set="${id}" data-accidx="${i}" onchange="onCalcModifierChange(this)">
+          <option value="" ${calcSelection[id].modifiers[i]===""?"selected":""}>-</option>
+          <option value="menacing" ${calcSelection[id].modifiers[i]==="menacing"?"selected":""}>menacing (+4% dmg)</option>
+          <option value="warding" ${calcSelection[id].modifiers[i]==="warding"?"selected":""}>warding (+4 def)</option>
+        </select>
+      </div>`).join("");
+
+    return `<div class="calc-set"><h3>set${id}</h3>${rows}
+      <label class="calc-toggle">
+        <input type="checkbox" ${calcSelection[id].sake ? "checked" : ""} onchange="onSakeToggle('${id}', this.checked)">
+        enable sake (Def -4, Melee +10%)
+      </label>
+      <h3 class="calc-acc-heading">アクセサリー(最大7)</h3>
+      ${accRows}
+    </div>`;
   }
   main.innerHTML = `
     <div class="calc-wrap">
       ${setPanel("A")}
+      <div class="calc-copy-controls">
+        <button onclick="copySet('A','B')" title="セットAの内容をセットBにコピー">A->B</button>
+        <button onclick="copySet('B','A')" title="セットBの内容をセットAにコピー">B->A</button>
+      </div>
       ${setPanel("B")}
     </div>
     <div class="calc-result" id="calcResult"></div>
   `;
   updateCalcResult();
+}
+
+function copySet(fromId, toId){
+  const from = calcSelection[fromId];
+  calcSelection[toId] = {
+    head: from.head, body: from.body, legs: from.legs,
+    accessories: from.accessories.slice(),
+    modifiers: from.modifiers.slice(),
+    sake: from.sake
+  };
+  renderCalculator();
 }
 
 function onCalcInput(el){
@@ -324,6 +372,43 @@ function onCalcInput(el){
   const pool = getArmorPool();
   const match = pool.find(a => a.Name === val && classifySlot(a.Name) === slot);
   calcSelection[setId][slot] = match || null;
+  updateCalcResult();
+}
+
+function onCalcAccessoryInput(el){
+  const setId = el.dataset.set, idx = Number(el.dataset.accidx);
+  const val = el.value;
+  const match = ACCESSORIES.find(a => a.name === val);
+
+  if(match){
+    const dupIdx = calcSelection[setId].accessories.findIndex((a,i) => i !== idx && a && a.name === match.name);
+    if(dupIdx !== -1){
+      alert(`${match.name}\n同時に装備できないよ(cannot equip the same item)`);
+      el.value = calcSelection[setId].accessories[idx]?.name || "";
+      return;
+    }
+    if(match.wing){
+      const conflictIdx = calcSelection[setId].accessories.findIndex((a,i) => i !== idx && a && a.wing);
+      if(conflictIdx !== -1){
+        alert(`wingは一種類のみだよ(There is only one type of wing`);
+        el.value = calcSelection[setId].accessories[idx]?.name || "";
+        return;
+      }
+    }
+  }
+
+  calcSelection[setId].accessories[idx] = match || null;
+  updateCalcResult();
+}
+
+function onCalcModifierChange(el){
+  const setId = el.dataset.set, idx = Number(el.dataset.accidx);
+  calcSelection[setId].modifiers[idx] = el.value;
+  updateCalcResult();
+}
+
+function onSakeToggle(setId, checked){
+  calcSelection[setId].sake = checked;
   updateCalcResult();
 }
 
@@ -337,7 +422,46 @@ function sumStats(sel){
     stats.Ranged += p.CurrentRangedDamagePercentage || 0;
     stats.Minion += p.CurrentMinionDamagePercentage || 0;
   });
+  sel.accessories.forEach((acc, i)=>{
+    if(!acc) return;
+    stats.Defense += acc.defense || 0;
+    stats.Melee += acc.melee || 0;
+    stats.Magic += acc.magic || 0;
+    stats.Ranged += acc.ranged || 0;
+    stats.Minion += acc.minion || 0;
+    const mod = sel.modifiers[i];
+    if(mod === "menacing"){
+      stats.Melee += 4; stats.Magic += 4; stats.Ranged += 4; stats.Minion += 4;
+    } else if(mod === "warding"){
+      stats.Defense += 4;
+    }
+  });
+  if(sel.sake){
+    stats.Defense -= 4;
+    stats.Melee += 10;
+  }
   return stats;
+}
+
+// solarのregenはとりあえずハードコード :p
+const SOLAR_FLARE_PIECES = new Set(["Solar Flare Helmet", "Solar Flare Breastplate", "Solar Flare Leggings"]);
+
+function sumMisc(sel){
+  let regen=0, dr=0, potion=false, dash=false, wing=false;
+
+  [sel.head, sel.body, sel.legs].forEach(piece=>{
+    if(piece && SOLAR_FLARE_PIECES.has(piece.Name)) regen += 1;
+  });
+
+  sel.accessories.forEach(acc=>{
+    if(!acc) return;
+    regen += acc.regen || 0;
+    dr += acc.dr || 0;
+    if(acc.potionCooldown) potion = true;
+    if(acc.doubleTapDash) dash = true;
+    if(acc.wing) wing = true;
+  });
+  return {regen, dr, potion, dash, wing};
 }
 
 function updateCalcResult(){
@@ -345,18 +469,44 @@ function updateCalcResult(){
   if(!box) return;
   const a = sumStats(calcSelection.A);
   const b = sumStats(calcSelection.B);
+  const miscA = sumMisc(calcSelection.A);
+  const miscB = sumMisc(calcSelection.B);
+
   const rows = [
     ["防御力 (Defense)", a.Defense, b.Defense],
     ["近接ダメージ% (Melee)", a.Melee, b.Melee],
     ["魔法ダメージ% (Magic)", a.Magic, b.Magic],
     ["遠隔ダメージ% (Ranged)", a.Ranged, b.Ranged],
     ["ミニオンダメージ% (Minion)", a.Minion, b.Minion]
-  ];
+  ].filter(([,av,bv]) => av || bv); // 両方0なら行ごと非表示
+
   function diffClass(x, y){ if(x === y) return ""; return x > y ? "calc-diff-pos" : "calc-diff-neg"; }
+
   let html = '<table><thead><tr><th>項目</th><th style="text-align:right;">セットA</th><th style="text-align:right;">セットB</th></tr></thead><tbody>';
+  if(!rows.length){
+    html += `<tr><td colspan="3" class="calc-misc-empty">まだ何も選ばれていないよ</td></tr>`;
+  }
   rows.forEach(([label, av, bv]) => {
     html += `<tr><td>${escapeHtml(label)}</td><td class="num ${diffClass(av,bv)}">${escapeHtml(av)}</td><td class="num ${diffClass(bv,av)}">${escapeHtml(bv)}</td></tr>`;
   });
+
+  // その他(regen/DR/ポーションCT/ダッシュ/飛行)。片方でも値/trueがある行だけ表示する。
+  // ラベル/表記は元のファイルにあった英語表記のまま。
+  const miscRows = [
+    ["Regen", miscA.regen, miscB.regen, v => `+${v}`],
+    ["DR", miscA.dr, miscB.dr, v => `+${v}%`],
+    ["Life Potion CT", miscA.potion, miscB.potion, () => "cut25%"],
+    ["Dash", miscA.dash, miscB.dash, () => "double tap"],
+    ["Wing", miscA.wing, miscB.wing, () => "jump to fly"]
+  ].filter(([,av,bv]) => av || bv);
+
+  if(miscRows.length){
+    html += `<tr class="calc-subhead"><td colspan="3">その他(misc)</td></tr>`;
+    miscRows.forEach(([label, av, bv, fmt]) => {
+      html += `<tr><td>${escapeHtml(label)}</td><td class="num">${av ? escapeHtml(fmt(av)) : '-'}</td><td class="num">${bv ? escapeHtml(fmt(bv)) : '-'}</td></tr>`;
+    });
+  }
+
   html += '</tbody></table>';
   box.innerHTML = html;
 }
