@@ -31,9 +31,16 @@ function setWidth(px){
   document.getElementById("main").style.maxWidth = px + "px";
 }
 
+let bannedFilter = "hide"; // hide/all/only
+
 function toggleShowBanned(){
-  showBanned = !showBanned;
-  document.getElementById("bannedChip").classList.toggle("on", showBanned);
+  bannedFilter = bannedFilter === "hide" ? "only" : bannedFilter === "only" ? "all" : "hide";
+  const chip = document.getElementById("bannedChip");
+  chip.classList.toggle("on", bannedFilter !== "hide");
+  chip.classList.toggle("only", bannedFilter === "only");
+chip.textContent =
+    bannedFilter === "hide" ? "Banned Only" :
+    bannedFilter === "only" ? "Show All" : "Hide Banned";
   render();
 }
 
@@ -75,11 +82,11 @@ async function fetchAllPages(catKey){
 async function loadAll(){
   const btn = document.getElementById("refreshBtn");
   btn.disabled = true;
-  setStatus('<span class="spinner"></span> 読み込み中...');
+  setStatus("読み込み中...", true);
   let errors = [];
   for(const catKey of Object.keys(CATS)){
     try{
-      setStatus(`<span class="spinner"></span> 読み込み中 (${catKey})...`);
+      setStatus(`読み込み中 (${catKey})...`, true);
       const items = await fetchAllPages(catKey);
       const map = {};
       items.forEach(it => { map[it.NetID ?? it._id] = it; });
@@ -194,7 +201,8 @@ function render(){
   const slotF = currentCat === "armorPieces" ? document.getElementById("slotFilter").value : "";
 
   let filtered = items.filter(it => {
-    if(!showBanned && it.Banned) return false;
+    if(bannedFilter === "hide" && it.Banned) return false;
+    if(bannedFilter === "only" && !it.Banned) return false;
     if(q && !(it.Name||"").toLowerCase().includes(q)) return false;
     if(typeF && it.WeaponType !== typeF) return false;
     if(slotF && classifySlot(it.Name) !== slotF) return false;
@@ -298,7 +306,7 @@ function classifySlot(name){
 }
 
 function getArmorPool(){
-  return Object.values(store.armorPieces).filter(a => showBanned || !a.Banned);
+  return Object.values(store.armorPieces).filter(a => bannedFilter !== "hide" || !a.Banned);
 }
 
 function renderCalculator(){

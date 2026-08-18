@@ -94,6 +94,7 @@ input[type=range]::-moz-range-thumb{
   font-family:var(--mono); text-transform:uppercase; letter-spacing:.05em;
 }
 .chip.on{background:var(--line-lit); border-color:var(--line-lit); color:var(--line-dark);}
+.chip.only{background:var(--r-banned); border-color:var(--r-banned); color:#fff;}
 main{padding:8px 20px 40px; max-width:1400px; margin:0 auto;}
 table{
   width:100%; border-collapse:collapse; margin-top:14px; font-size:13px;
