@@ -30,6 +30,7 @@
   <div class="tabs" id="tabs">
     <div class="tab active" data-cat="weapons">武器 (weapons)</div>
     <div class="tab" data-cat="armorPieces">防具 (armorPieces)</div>
+    <div class="tab" data-cat="accessories">アクセサリー (accessories)</div>
     <div class="tab" data-cat="projectiles">弾丸 (projectiles)</div>
     <div class="tab" data-cat="calculator">防具計算機(armor calc)</div>
   </div>
@@ -47,7 +48,7 @@
   </div>
 
   <main id="main">
-    <div class="empty">「データを取得/更新」を押すと、weapons / armorPieces / projectiles を全ページ自動取得します。</div>
+    <div class="empty">「データを取得/更新」を押すと、weapons / armorPieces / accessories / projectiles を全件自動取得します。</div>
   </main>
 
   <footer id="footer">データソース: pvpcapi.dark-gaming.com / 画像: pvpmanager.dark-gaming.com</footer>
@@ -56,6 +57,8 @@
   <script src="armor-slot-body.js"></script>
   <script src="armor-slot-legs.js"></script>
   <script src="accessories.js"></script>
+  <script src="data-fetch.js"></script>
+  <script src="calculator.js"></script>
   <script src="app.js"></script>
   </body>
 </html>
