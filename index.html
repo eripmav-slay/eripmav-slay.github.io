@@ -5,8 +5,8 @@
   <meta http-equiv="Content-Security-Policy"
     content="
     default-src 'self';
-    img-src 'self' https://pvpmanager.dark-gaming.com data:;
-    connect-src https://pvpcapi.dark-gaming.com;
+    img-src 'self' https://pvpmanager.dark-gaming.com https://tinvapi.dark-gaming.com data:;
+    connect-src https://pvpcapi.dark-gaming.com https://tinvapi.dark-gaming.com;
     style-src 'self' 'unsafe-inline';
     script-src 'self' 'unsafe-inline';
     object-src 'none';
@@ -19,46 +19,49 @@
   </head>
 <body>
 
-  <header>
-    <h1>Eripvp Data</h1>
-    <span class="status" id="status"></span>
-    <label style="font-size:12px; color:var(--muted);">幅(width)</label>
-    <input type="range" id="widthSlider" min="800" max="2200" step="50" value="1400" oninput="setWidth(this.value)">
-    <button class="primary" id="refreshBtn" onclick="loadAll()">🔄 データを取得/更新(sync)</button>
-  </header>
+  <div class="topbar">
+    <header>
+      <h1>Eripvp Data</h1>
+      <span class="status" id="status"></span>
+      <label style="font-size:12px; color:var(--muted);">幅(width)</label>
+      <input type="range" id="widthSlider" min="800" max="2200" step="50" value="1400" oninput="app.setWidth(this.value)">
+      <button class="primary" id="refreshBtn" onclick="app.loadAll()">データを取得/更新(sync)</button>
+    </header>
 
-  <div class="tabs" id="tabs">
-    <div class="tab active" data-cat="weapons">武器 (weapons)</div>
-    <div class="tab" data-cat="armorPieces">防具 (armorPieces)</div>
-    <div class="tab" data-cat="accessories">アクセサリー (accessories)</div>
-    <div class="tab" data-cat="projectiles">弾丸 (projectiles)</div>
-    <div class="tab" data-cat="calculator">防具計算機(armor calc)</div>
-  </div>
+    <div class="tabs" id="tabs">
+      <div class="tab" data-cat="member">メンバー (member)</div>
+      <div class="tab active" data-cat="weapons">武器 (weapons)</div>
+      <div class="tab" data-cat="armorPieces">防具 (armorPieces)</div>
+      <div class="tab" data-cat="accessories">アクセサリー (accessories)</div>
+      <div class="tab" data-cat="projectiles">弾丸 (projectiles)</div>
+      <div class="tab" data-cat="calculator">防具計算機(armor calc)</div>
+    </div>
 
-  <div class="toolbar" id="toolbar">
-    <input type="text" id="search" placeholder="名前で検索..." oninput="render()">
-    <select id="typeFilter" onchange="render()">
-      <option value="">全タイプ(all type)</option>
-    </select>
-    <select id="slotFilter" onchange="render()">
-      <option value="">全部位(all slot)</option>
-    </select>
-    <span class="chip" id="bannedChip" onclick="toggleShowBanned()">Banned Only</span>
-    <span class="count" id="count"></span>
+    <div class="toolbar" id="toolbar">
+      <input type="text" id="search" placeholder="名前で検索..." oninput="app.render()">
+      <select id="typeFilter" onchange="app.render()">
+        <option value="">all type</option>
+      </select>
+      <select id="slotFilter" onchange="app.render()">
+        <option value="">all slot</option>
+      </select>
+      <span class="chip" id="bannedChip" onclick="app.toggleBannedFilter()">Banned Only</span>
+      <span class="count" id="count"></span>
+    </div>
   </div>
 
   <main id="main">
     <div class="empty">「データを取得/更新」を押すと、weapons / armorPieces / accessories / projectiles を全件自動取得します。</div>
   </main>
 
+  <!-- 他のタブに切り替えてもDOM(画像含む)を破棄しない、非表示にするだけ -->
+  <div id="memberMain" class="member-main" style="display:none;">
+    <div class="empty">読み込み中...</div>
+  </div>
+
   <footer id="footer">データソース: pvpcapi.dark-gaming.com / 画像: pvpmanager.dark-gaming.com</footer>
 
-  <script src="armor-slot-head.js"></script>
-  <script src="armor-slot-body.js"></script>
-  <script src="armor-slot-legs.js"></script>
-  <script src="accessories.js"></script>
-  <script src="data-fetch.js"></script>
-  <script src="calculator.js"></script>
-  <script src="app.js"></script>
+  <!-- 他の全スクリプトはloader.jsが依存関係順に動的読み込みする -->
+  <script src="loader.js"></script>
   </body>
 </html>
