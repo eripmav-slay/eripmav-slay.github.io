@@ -9,7 +9,7 @@ class MembersView {
     this.consecutiveFailures = 0
     this._fetchingEquipment = new Set() // 装備を取得中のプレイヤー名、同じ人への二重リクエストを避ける
     this.equipmentDown = false // 装備APIが落ちてる間はtrue、1人だけ様子見して負荷を絞る
-    this.equipmentConsecutiveFailures = 0 // 全員分が1回まるごと失敗した回数、3回でequipmentDownにする
+    this.equipmentConsecutiveFailures = 0 // 全員分が1回まるごと失敗した回数、指定回数でequipmentDownにする
     this.statsPoller = new Poller(() => this.refreshStats(), statsIntervalMs)
     this.equipmentPoller = new Poller(() => this.refreshEquipment(), equipmentIntervalMs)
   }
@@ -28,7 +28,7 @@ class MembersView {
 
   async refreshStats() {
     // 一覧(HP/MP/hotbar)を取得して再描画する
-    // 失敗してもここでは何もしない、3回連続で初めてAPI Deadを表示する
+    // 失敗してもここでは何もしない、指定回連続で初めてAPI Deadを表示する
     try {
       const rawList = await this.apiClient.fetchPlayers()
       const previousByName = new Map(this.players.map(p => [p.name, p]))
@@ -81,9 +81,9 @@ class MembersView {
     }
     if (!this.players.length) return
 
-    // 全員分がまるごと失敗した回数をカウント、3回連続で初めてdown扱いにする
+    // 全員分がまるごと失敗した回数をカウント、指定回連続で初めてdown扱いにする
     this.equipmentConsecutiveFailures++
-    if (this.equipmentConsecutiveFailures >= 3) {
+    if (this.equipmentConsecutiveFailures >= 4) {
       this.equipmentDown = true
       this._renderEquipmentCells()
     }
@@ -116,7 +116,7 @@ class MembersView {
 
   render() {
     // 現在保持しているプレイヤー一覧をテーブルとして描画する
-    // 顔ぶれが変わっていなければ表は作り直さず、HP/MPのテキストとhotbarだけ書き換える
+    // メンバーが変わっていなければ表は作り直さず、HP/MPのテキストとhotbarだけ書き換える
     if (!this.players.length) {
       this.container.innerHTML = '<div class="empty">参加中のプレイヤーがいないよ</div>'
       this._lastNames = null
