@@ -210,24 +210,27 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 }
 .calc-misc-empty{font-size:13px; color:var(--muted);}
 
-.member-main{min-width:990px;} 
+.member-main{min-width:990px;} /* 固定サイズのアイコンが収まる最小幅、これより狭くはしない */
 .member-table{
-  --icon-size:36px; --icon-gap:4px; 
+  --icon-size:36px; --icon-gap:4px; /* アイコンの大きさはスライダーで変えない、変わるのは余白だけ */
   font-size:15px;
-  table-layout:fixed;
+  table-layout:fixed; /* 列幅を中身ではなくcolで決めて、行ごとのアイコン数の差で列がズレないようにする */
 }
 .member-table th{font-size:12px;}
 .member-table td{padding:10px 8px;}
-.member-table td.num{text-align:left;} 
+.member-table td.num{text-align:left;} /* 見出しが左寄せなので数字も左寄せにして位置を揃える */
 .member-row{cursor:pointer}
 .member-row:hover{background:var(--panel2)}
 
+/* 列幅は%にして、幅が変わった時の余白を全列で按分する(合計100%) */
+/* 比率はアイコン固定サイズでの必要幅に合わせてある(name120/stat90x2/armor136/acc296/hotbar212px、合計944px) */
 .member-table col.col-name{width:12.7%;}
 .member-table col.col-stat{width:9.5%;}
 .member-table col.col-armor{width:14.4%;}
 .member-table col.col-acc{width:31.4%;}
 .member-table col.col-hotbar{width:22.5%;}
 
+/* 装備系の3列は縦の区切り線を入れて、まとまりとして見えるようにする */
 .member-table .eq-group{border-left:1px solid var(--border);}
 
 .member-stat{
@@ -239,11 +242,11 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 
 .icon-row{
   display:flex; flex-wrap:wrap; align-items:center; gap:var(--icon-gap);
-  min-height:var(--icon-size); 
+  min-height:var(--icon-size); /* アイコンが0個でも行の高さが変わらないように */
 }
 .icon-row.hotbar-grid{
-  display:grid; grid-template-columns:repeat(5, var(--icon-size)); 
-  min-height:calc(var(--icon-size) * 2 + var(--icon-gap)); 
+  display:grid; grid-template-columns:repeat(5, var(--icon-size)); /* 横5個で折り返して縦2段にする */
+  min-height:calc(var(--icon-size) * 2 + var(--icon-gap)); /* 5個以下の人も2段分の高さにして、行ごとの高さを揃える */
   align-content:center;
 }
 .hotbar-icon{
@@ -253,3 +256,4 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 
 .api-dead{color:var(--r-banned); font-weight:700; letter-spacing:.05em;}
 .eq-pending{color:var(--muted); font-family:var(--mono);}
+.eq-down{color:var(--r-banned); font-family:var(--mono); font-size:11px; letter-spacing:.03em;}

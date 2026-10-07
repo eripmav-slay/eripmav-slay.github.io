@@ -9,6 +9,7 @@ class MembersView {
     this.consecutiveFailures = 0
     this._fetchingEquipment = new Set() // 装備を取得中のプレイヤー名、同じ人への二重リクエストを避ける
     this.equipmentDown = false // 装備APIが落ちてる間はtrue、1人だけ様子見して負荷を絞る
+    this.equipmentConsecutiveFailures = 0 // 全員分が1回まるごと失敗した回数、3回でequipmentDownにする
     this.statsPoller = new Poller(() => this.refreshStats(), statsIntervalMs)
     this.equipmentPoller = new Poller(() => this.refreshEquipment(), equipmentIntervalMs)
   }
@@ -65,14 +66,27 @@ class MembersView {
       const recovered = await this._fetchEquipment([probe])
       if (!recovered) return
 
-      // 復旧したのでなるべく早く残り全員も取り直す、次のPollerは待たない
+      // 復旧したのでAPI died表記を解除、なるべく早く残り全員も取り直す
       this.equipmentDown = false
+      this.equipmentConsecutiveFailures = 0
+      this._renderEquipmentCells()
       this._fetchEquipment(this.players.slice(1))
       return
     }
 
     const succeeded = await this._fetchEquipment(this.players.slice())
-    if (!succeeded && this.players.length) this.equipmentDown = true
+    if (succeeded) {
+      this.equipmentConsecutiveFailures = 0
+      return
+    }
+    if (!this.players.length) return
+
+    // 全員分がまるごと失敗した回数をカウント、3回連続で初めてdown扱いにする
+    this.equipmentConsecutiveFailures++
+    if (this.equipmentConsecutiveFailures >= 3) {
+      this.equipmentDown = true
+      this._renderEquipmentCells()
+    }
   }
 
   async _fetchEquipment(targets) {
@@ -179,16 +193,23 @@ class MembersView {
   }
 
   _renderArmorCell(player) {
-    // 頭/胴/足のアイコンを横並びで返す、まだ取れていなければ"-"
+    // 頭/胴/足のアイコンを横並びで返す、落ちてる間はAPI died、未取得なら"-"
+    if (this.equipmentDown) return this._renderEquipmentDown()
     if (!player.equipment) return '<span class="eq-pending">-</span>'
     const items = [player.getHeadItem(), player.getBodyItem(), player.getLegsItem()].filter(Boolean)
     return this._renderIconRow(items)
   }
 
   _renderAccessoryCell(player) {
-    // アクセサリー7枠のアイコンを横並びで返す、まだ取れていなければ"-"
+    // アクセサリー7枠のアイコンを横並びで返す、落ちてる間はAPI died、未取得なら"-"
+    if (this.equipmentDown) return this._renderEquipmentDown()
     if (!player.equipment) return '<span class="eq-pending">-</span>'
     return this._renderIconRow(player.getAccessoryItems())
+  }
+
+  _renderEquipmentDown() {
+    // 装備APIが連続で落ちてる間の表示
+    return '<span class="eq-down">API died</span>'
   }
 
   _renderHotbar(player) {
