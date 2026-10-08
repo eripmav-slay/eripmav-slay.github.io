@@ -45,7 +45,7 @@ class Accessory {
 
   hasDash() {
     // ダッシュ効果を持つかどうかを返す(boolean)
-    return this.effects.Dash;
+    return this.effects.dash;
   }
 
   hasPotionCooldownReduction() {

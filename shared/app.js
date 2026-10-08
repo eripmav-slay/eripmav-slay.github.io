@@ -22,11 +22,9 @@ class App {
     // ホットバー画像の再取得/再生成を防ぐため
     const memberMainEl = document.getElementById("memberMain");
     this.pvpApiClient = new PvpApiClient();
-    this.memberStatsIntervalMs = 5000;     // HP/MP/hotbarの更新間隔
-    this.memberEquipmentIntervalMs = 3000; // 防具/アクセサリーの更新間隔
     this.membersView = new MembersView(
       this.pvpApiClient, memberMainEl,
-      this.memberStatsIntervalMs, this.memberEquipmentIntervalMs
+      MEMBER_STATS_INTERVAL_MS, MEMBER_EQUIPMENT_INTERVAL_MS
     );
 
     this.currentCat = "weapons";
@@ -36,10 +34,68 @@ class App {
   }
 
   _bindStaticEvents() {
-    // 最初から存在するDOM要素(タブ)へのイベント登録をまとめる
+    // イベント登録をまとめる(CSPでインラインのonclick等を使わないため、全てここに集約)
+    // 最初から存在する要素には直接、後から描画される要素にはmain/memberMainへの委譲で登録する
     document.querySelectorAll(".tab").forEach(tab => {
       tab.addEventListener("click", () => this.switchTab(tab.dataset.cat, tab));
     });
+    document.getElementById("refreshBtn").addEventListener("click", () => this.loadAll());
+    document.getElementById("widthSlider").addEventListener("input", e => this.setWidth(e.target.value));
+    document.getElementById("search").addEventListener("input", () => this.render());
+    document.getElementById("typeFilter").addEventListener("change", () => this.render());
+    document.getElementById("slotFilter").addEventListener("change", () => this.render());
+    document.getElementById("bannedChip").addEventListener("click", () => this.toggleBannedFilter());
+
+    const mainEl = document.getElementById("main");
+    mainEl.addEventListener("click", e => this._onMainClick(e));
+    mainEl.addEventListener("input", e => this._onMainInput(e));
+    mainEl.addEventListener("change", e => this._onMainChange(e));
+    document.getElementById("memberMain").addEventListener("click", e => this._onMemberClick(e));
+
+    this._syncTopbarHeight();
+
+    // 画像の読み込み失敗はバブリングしないので、キャプチャ段階でまとめて拾って非表示にする
+    document.addEventListener("error", e => {
+      if (e.target instanceof HTMLImageElement) e.target.style.display = "none";
+    }, true);
+  }
+
+  _syncTopbarHeight() {
+    // 表の列見出し(thead)の固定位置をtopbarの実高さに合わせる(--topbar-height)
+    // ヘッダーの折り返しやツールバーの表示切替で高さが変わるのでResizeObserverで追従する
+    const topbar = document.querySelector(".topbar");
+    const update = () => document.documentElement.style.setProperty("--topbar-height", `${topbar.offsetHeight}px`);
+    new ResizeObserver(update).observe(topbar);
+    update();
+  }
+
+  _onMainClick(e) {
+    // main内の動的要素(列ヘッダー/計算機のA-Bコピーボタン)のクリックをdata-actionで振り分ける
+    const el = e.target.closest("[data-action]");
+    if (!el) return;
+    if (el.dataset.action === "sort") this.onTableSort(el.dataset.cat, el.dataset.sortKey);
+    if (el.dataset.action === "copy-set") this.copyCalcSet(el.dataset.from, el.dataset.to);
+  }
+
+  _onMainInput(e) {
+    // main内の計算機の入力欄(防具/アクセサリー)のinputをdata-actionで振り分ける
+    const el = e.target;
+    if (el.dataset.action === "calc-armor") this.onCalcArmorInput(el);
+    if (el.dataset.action === "calc-accessory") this.onCalcAccessoryInput(el);
+  }
+
+  _onMainChange(e) {
+    // main内の計算機の選択(modifier/sake)のchangeをdata-actionで振り分ける
+    const el = e.target;
+    if (el.dataset.action === "calc-modifier") this.onCalcModifierChange(el);
+    if (el.dataset.action === "calc-sake") this.onSakeToggle(el.dataset.set, el.checked);
+  }
+
+  _onMemberClick(e) {
+    // メンバー一覧の行クリックを、行のdata-index(playersの添字)で振り分ける
+    const row = e.target.closest("tr.member-row");
+    if (!row) return;
+    this.onMemberRowClick(Number(row.dataset.index));
   }
 
   switchTab(catKey, tabEl) {
@@ -101,7 +157,7 @@ class App {
     // 計算機の頭/胴/足入力を受けてCalculatorViewに反映する
     // 拒否された場合は入力欄の表示を元に戻す
     const setId = el.dataset.set, slot = el.dataset.slot;
-    const ok = this.calculatorView.onArmorInput(setId, slot, el.value, this.bannedFilter);
+    const ok = this.calculatorView.onArmorInput(setId, slot, el.value);
     if (!ok) {
       const current = this.calculatorView.sets[setId][slot];
       el.value = current?.Name || "";
@@ -111,7 +167,7 @@ class App {
   onCalcAccessoryInput(el) {
     // 計算機のアクセサリー入力を受けてCalculatorViewに反映
     const setId = el.dataset.set, idx = Number(el.dataset.accidx);
-    const ok = this.calculatorView.onAccessoryInput(setId, idx, el.value, this.bannedFilter);
+    const ok = this.calculatorView.onAccessoryInput(setId, idx, el.value);
     if (!ok) {
       const current = this.calculatorView.sets[setId].accessories[idx];
       el.value = current?.name || "";
@@ -130,7 +186,7 @@ class App {
 
   copyCalcSet(fromId, toId) {
     // セットA/BのコピーをCalculatorViewに反映、計算機タブを再描画
-    this.calculatorView.copySet(fromId, toId, this.bannedFilter);
+    this.calculatorView.copySet(fromId, toId);
   }
 
   render() {
@@ -138,7 +194,7 @@ class App {
     // memberタブはPoller側が自前でrefresh/renderするのでここでは何もしない
     if (this.currentCat === "member") return;
     if (this.currentCat === "calculator") {
-      this.calculatorView.render(this.bannedFilter);
+      this.calculatorView.render();
       return;
     }
     this.tableView.render(this.currentCat, {

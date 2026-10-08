@@ -28,33 +28,37 @@ class MembersView {
 
   async refreshStats() {
     // 一覧(HP/MP/hotbar)を取得して再描画する
-    // 失敗してもここでは何もしない、指定回連続で初めてAPI Deadを表示する
+    // 通信に失敗してもここでは何もしない、指定回連続で初めてAPI Deadを表示する
+    // 失敗として数えるのは通信だけ(描画側の例外をAPI Deadにしないため)
+    let rawList
     try {
-      const rawList = await this.apiClient.fetchPlayers()
-      const previousByName = new Map(this.players.map(p => [p.name, p]))
-
-      this.players = rawList.map(raw => {
-        const player = new Player(raw)
-        const prev = previousByName.get(player.name)
-        if (prev && prev.equipment) player.equipment = prev.equipment
-        return player
-      })
-
-      this.consecutiveFailures = 0
-      this.render()
-
-      // 装備がまだ無い人(新規参加やタブを開いた直後)は次のPollerを待たずにすぐ取りに行く
-      // ただし装備APIが落ちてる間は無駄打ちしない、復旧はrefreshEquipment側のprobeに任せる
-      if (!this.equipmentDown) {
-        const missing = this.players.filter(p => !p.equipment)
-        if (missing.length) this._fetchEquipment(missing)
-      }
+      rawList = await this.apiClient.fetchPlayers()
     } catch (e) {
       this.consecutiveFailures++
-      if (this.consecutiveFailures >= 3) {
+      if (this.consecutiveFailures >= MEMBER_STATS_MAX_FAILURES) {
         this.container.innerHTML = '<div class="empty api-dead">API Dead...RIP</div>'
         this._lastNames = null
       }
+      return
+    }
+
+    const previousByName = new Map(this.players.map(p => [p.name, p]))
+
+    this.players = rawList.map(raw => {
+      const player = new Player(raw)
+      const prev = previousByName.get(player.name)
+      if (prev && prev.equipment) player.equipment = prev.equipment
+      return player
+    })
+
+    this.consecutiveFailures = 0
+    this.render()
+
+    // 装備がまだ無い人(新規参加やタブを開いた直後)は次のPollerを待たずにすぐ取りに行く
+    // ただし装備APIが落ちてる間は無駄打ちしない、復旧はrefreshEquipment側のprobeに任せる
+    if (!this.equipmentDown) {
+      const missing = this.players.filter(p => !p.equipment)
+      if (missing.length) this._fetchEquipment(missing)
     }
   }
 
@@ -75,15 +79,15 @@ class MembersView {
     }
 
     const succeeded = await this._fetchEquipment(this.players.slice())
+    if (succeeded === null) return // 取得対象が無い/全員取得中で何もしなかった時は失敗に数えない
     if (succeeded) {
       this.equipmentConsecutiveFailures = 0
       return
     }
-    if (!this.players.length) return
 
     // 全員分がまるごと失敗した回数をカウント、指定回連続で初めてdown扱いにする
     this.equipmentConsecutiveFailures++
-    if (this.equipmentConsecutiveFailures >= 4) {
+    if (this.equipmentConsecutiveFailures >= MEMBER_EQUIPMENT_MAX_FAILURES) {
       this.equipmentDown = true
       this._renderEquipmentCells()
     }
@@ -93,8 +97,9 @@ class MembersView {
     // 指定したプレイヤーの装備を並列取得する、1人コケても他は続行する
     // 取得中の人は飛ばす、結果は取得中にplayersが作り直されても拾えるよう名前で現在のPlayerに入れる
     // 戻り値は1人でも成功したかどうか(down判定/復旧判定に使う)
+    // 取得対象が無い/全員取得中で何もしなかった時はnullを返す(失敗とは区別する)
     const names = targets.map(p => p.name).filter(name => !this._fetchingEquipment.has(name))
-    if (!names.length) return false
+    if (!names.length) return null
     names.forEach(name => this._fetchingEquipment.add(name))
 
     const results = await Promise.allSettled(
@@ -150,7 +155,7 @@ class MembersView {
     html += '</tr></thead><tbody>'
 
     this.players.forEach((player, i) => {
-      html += `<tr class="member-row" data-player="${escapeHtml(player.name)}" onclick="app.onMemberRowClick(${i})">`
+      html += `<tr class="member-row" data-player="${escapeHtml(player.name)}" data-index="${i}">`
       html += `<td class="name">${escapeHtml(player.name)}</td>`
       html += `<td class="num">${this._renderStat(player.hp, player.maxHp)}</td>`
       html += `<td class="num">${this._renderStat(player.mp, player.maxMp)}</td>`
@@ -226,6 +231,6 @@ class MembersView {
   _renderItemIcon(netId) {
     // 1個分のアイテムアイコン<img>を返す
     const src = `${TINV_ITEM_IMAGE_BASE}${netId}`
-    return `<img class="hotbar-icon" src="${escapeHtml(src)}" loading="lazy" onerror="this.style.display='none'">`
+    return `<img class="hotbar-icon" src="${escapeHtml(src)}" loading="lazy">`
   }
 }

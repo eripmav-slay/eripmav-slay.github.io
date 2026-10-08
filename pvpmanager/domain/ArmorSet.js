@@ -1,9 +1,3 @@
-// Solar Flareセットのregenはゲーム側で固有のハードコード扱いなので、
-// これも愛のハードコード
-const SOLAR_FLARE_PIECE_NAMES = new Set([
-  "Solar Flare Helmet", "Solar Flare Breastplate", "Solar Flare Leggings"
-]);
-
 /**
  * 計算機の1セット分(頭/胴/足の防具、アクセサリー7枠、各枠のmenacing/warding、sakeトグル)の状態と
  * ステータス合計/効果一覧を持つクラス
@@ -13,8 +7,8 @@ class ArmorSet {
     this.head = null;
     this.body = null;
     this.legs = null;
-    this.accessories = new Array(7).fill(null); // Accessoryインスタンス、空ならnull
-    this.modifiers = new Array(7).fill("");     // "" | "menacing" | "warding"(accessoriesと同じ添字)
+    this.accessories = new Array(ACCESSORY_SLOT_COUNT).fill(null); // Accessoryインスタンス、空ならnull
+    this.modifiers = new Array(ACCESSORY_SLOT_COUNT).fill("");     // "" | "menacing" | "warding"(accessoriesと同じ添字)
     this.sakeEnabled = false;
   }
 
@@ -56,15 +50,18 @@ class ArmorSet {
 
       const mod = this.modifiers[i];
       if (mod === "menacing") {
-        stats.Melee += 4; stats.Magic += 4; stats.Ranged += 4; stats.Minion += 4;
+        stats.Melee += MODIFIER_MENACING_DAMAGE;
+        stats.Magic += MODIFIER_MENACING_DAMAGE;
+        stats.Ranged += MODIFIER_MENACING_DAMAGE;
+        stats.Minion += MODIFIER_MENACING_DAMAGE;
       } else if (mod === "warding") {
-        stats.Defense += 4;
+        stats.Defense += MODIFIER_WARDING_DEFENSE;
       }
     });
 
     if (this.sakeEnabled) {
-      stats.Defense -= 4;
-      stats.Melee += 10;
+      stats.Defense += SAKE_DEFENSE_MODIFIER;
+      stats.Melee += SAKE_MELEE_BONUS;
     }
 
     return stats;
@@ -78,7 +75,7 @@ class ArmorSet {
     const seenGroups = new Set();
 
     this.getArmorPieces().forEach(piece => {
-      if (SOLAR_FLARE_PIECE_NAMES.has(piece.Name)) effects.regen += 1;
+      if (SOLAR_FLARE_PIECE_NAMES.has(piece.Name)) effects.regen += SOLAR_FLARE_REGEN_PER_PIECE;
     });
 
     const applyEffect = (acc) => {

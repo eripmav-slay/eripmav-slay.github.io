@@ -84,7 +84,9 @@ input[type=range]::-moz-range-thumb{
 .tab{
   padding:9px 18px; cursor:pointer; border-radius:2px 2px 0 0; font-size:13px;
   color:var(--muted); border:1px solid transparent; border-bottom:none;
+  background:transparent; font-family:inherit;
 }
+.tab:hover{border-color:transparent;}
 .tab.active{color:var(--text); background:var(--bg); border-color:var(--border); font-weight:600;}
 .toolbar{
   display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 20px;
@@ -95,6 +97,7 @@ input[type=range]::-moz-range-thumb{
   font-size:12px; padding:4px 10px; border-radius:2px; border:1px solid var(--border);
   color:var(--muted); cursor:pointer; user-select:none;
   font-family:var(--mono); text-transform:uppercase; letter-spacing:.03em;
+  background:transparent;
 }
 .chip.on{background:var(--line-lit); border-color:var(--line-lit); color:var(--line-dark);}
 .chip.only{background:var(--r-banned); border-color:var(--r-banned); color:#fff;}
@@ -108,7 +111,7 @@ table{
     0 0 0 4px var(--line-lit);
 }
 thead th{
-  position:sticky; top:150px; background:var(--panel); text-align:left; padding:7px 8px;
+  position:sticky; top:var(--topbar-height,150px); background:var(--panel); text-align:left; padding:7px 8px;
   border-bottom:2px solid var(--line-lit); cursor:pointer; white-space:nowrap; user-select:none;
   color:var(--muted); font-weight:600;
 }
@@ -135,8 +138,6 @@ td.icon img{width:26px; height:26px; object-fit:contain; image-rendering:pixelat
 .badge.summon{color:var(--r-summon);}
 .badge.banned{color:var(--r-banned); font-weight:700;}
 .badge.ok{color:var(--r-ok);}
-.diffup{color:var(--r-ok);}
-.diffdown{color:var(--r-banned);}
 .empty{padding:60px 0; text-align:center; color:var(--muted);}
 .panel-msg{
   margin:16px 20px; padding:14px 16px; border-radius:2px; font-size:13px; line-height:1.6;

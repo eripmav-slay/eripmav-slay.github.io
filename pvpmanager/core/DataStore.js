@@ -10,12 +10,13 @@ class DataStore {
     this.armorPieces = {};
     this.projectiles = {};
     this.accessories = {}; // NetID -> Accessoryインスタンス
+    this.bannedEquipmentIds = new Set(); // settings.BannedEquipmentのID、settings取得に失敗した時は前回の値を使い続ける
   }
 
   async loadAll(onProgress) {
     // 4カテゴリ+settingsを並列取得する
     // onProgress(done, total)を取得完了のたびに呼ぶ
-    // 失敗した場合はエラーメッセージの配列を返す
+    // 失敗した場合はエラーメッセージの配列を返す(失敗したカテゴリは前回のデータをそのまま残す)
     const categories = [
       { storeKey: "weapons",     endpoint: "weapons",     responseKey: "weapons" },
       { storeKey: "armorPieces", endpoint: "armorPieces", responseKey: "armorPieces" },
@@ -26,14 +27,14 @@ class DataStore {
     const total = categories.length + 1; // +1 は settings
     let done = 0;
     const errors = [];
-    let bannedEquipmentIds = new Set();
+    const fetched = {}; // storeKey -> 今回取得できたデータ(NetID -> 生データ)、失敗したカテゴリは入らない
 
     const categoryTasks = categories.map(async (cfg) => {
       try {
         const items = await this.apiClient.fetchCategory(cfg.endpoint, cfg.responseKey);
         const map = {};
         items.forEach(it => { map[it.NetID ?? it._id] = it; });
-        this[cfg.storeKey] = map;
+        fetched[cfg.storeKey] = map;
       } catch (e) {
         errors.push(`${cfg.storeKey}: ${e.message}`);
       } finally {
@@ -45,7 +46,7 @@ class DataStore {
     const settingsTask = (async () => {
       try {
         const settings = await this.apiClient.fetchSettings();
-        bannedEquipmentIds = new Set(settings.BannedEquipment || []);
+        this.bannedEquipmentIds = new Set(settings.BannedEquipment || []);
       } catch (e) {
         errors.push(`settings: ${e.message}`);
       } finally {
@@ -56,24 +57,33 @@ class DataStore {
 
     await Promise.all([...categoryTasks, settingsTask]);
 
+    // 取得できたカテゴリだけ差し替える(失敗時に前回のデータを壊さないため)
+    if (fetched.weapons) this.weapons = fetched.weapons;
+    if (fetched.armorPieces) this.armorPieces = fetched.armorPieces;
+    if (fetched.projectiles) this.projectiles = fetched.projectiles;
+
+    // アクセサリーは効果(AccessoryEffectRegistry)をまとめてAccessoryインスタンスにする
+    // 生データの状態で取れた時だけ変換する(変換済みのインスタンスを二重に包まないため)
+    if (fetched.accessories) {
+      const wrapped = {};
+      Object.values(fetched.accessories).forEach(raw => {
+        wrapped[raw.NetID] = new Accessory(raw, this.effectRegistry.getEffects(raw.Name));
+      });
+      this.accessories = wrapped;
+    }
+
     // settings.BannedEquipmentに載っているIDは武器/防具/アクセサリーどれもBanned扱いにする
     // 武器は自前のBannedフィールドも持っているので、どちらかがtrueならBanned
+    // アクセサリーは自前のBannedフィールドを持たないのでsettingsのリストだけで判定する
     Object.values(this.weapons).forEach(w => {
-      w.Banned = !!w.Banned || bannedEquipmentIds.has(w.NetID);
+      w.Banned = !!w.Banned || this.bannedEquipmentIds.has(w.NetID);
     });
     Object.values(this.armorPieces).forEach(a => {
-      a.Banned = bannedEquipmentIds.has(a.NetID);
+      a.Banned = this.bannedEquipmentIds.has(a.NetID);
     });
-
-    // アクセサリーは自前のBannedフィールドを持たないのでsettingsのBanアイテムが記録されたリストで判定し、
-    // 効果(AccessoryEffectRegistry)をまとめてAccessoryインスタンスにする
-    const wrapped = {};
-    Object.values(this.accessories).forEach(raw => {
-      raw.Banned = bannedEquipmentIds.has(raw.NetID);
-      const effects = this.effectRegistry.getEffects(raw.Name);
-      wrapped[raw.NetID] = new Accessory(raw, effects);
+    Object.values(this.accessories).forEach(acc => {
+      acc.raw.Banned = this.bannedEquipmentIds.has(acc.netId);
     });
-    this.accessories = wrapped;
 
     return errors;
   }

@@ -6,11 +6,16 @@
 class SlotClassifier {
   constructor(headNames, headKeywords, bodyNames, bodyKeywords, legsNames, legsKeywords) {
     this.headNames = new Set(headNames.map(s => s.toLowerCase()));
-    this.headRegex = new RegExp(headKeywords.map(w => `\\b${w}\\b`).join("|"), "i");
+    this.headRegex = this._buildKeywordRegex(headKeywords);
     this.bodyNames = new Set(bodyNames.map(s => s.toLowerCase()));
-    this.bodyRegex = new RegExp(bodyKeywords.map(w => `\\b${w}\\b`).join("|"), "i");
+    this.bodyRegex = this._buildKeywordRegex(bodyKeywords);
     this.legsNames = new Set(legsNames.map(s => s.toLowerCase()));
-    this.legsRegex = new RegExp(legsKeywords.map(w => `\\b${w}\\b`).join("|"), "i");
+    this.legsRegex = this._buildKeywordRegex(legsKeywords);
+  }
+
+  _buildKeywordRegex(keywords) {
+    // キーワード配列を、特殊文字をエスケープした単語境界つきの正規表現(大文字小文字無視)にして返す
+    return new RegExp(keywords.map(w => `\\b${escapeRegex(w)}\\b`).join("|"), "i");
   }
 
   classify(name) {

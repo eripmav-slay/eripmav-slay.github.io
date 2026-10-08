@@ -154,7 +154,7 @@ class TableView {
       const sorted = sortState.col === c.sortKey;
       const arrow = sorted ? (sortState.dir === 1 ? "▲" : "▼") : "";
       const align = (c.type === "num" || c.type === "effnum") ? "text-align:right;" : "";
-      html += `<th style="${align}" class="${sorted ? 'sorted' : ''}" onclick="app.onTableSort('${catKey}','${c.sortKey}')">${c.label}<span class="arrow">${arrow}</span></th>`;
+      html += `<th style="${align}" class="${sorted ? 'sorted' : ''}" data-action="sort" data-cat="${catKey}" data-sort-key="${c.sortKey}">${c.label}<span class="arrow">${arrow}</span></th>`;
     });
     html += '</tr></thead><tbody>';
     items.forEach(item => {
@@ -172,7 +172,7 @@ class TableView {
     const v = column.get(item);
     if (column.type === "icon") {
       const src = `${IMG_BASE}${v}.png`;
-      return `<td class="icon"><img src="${escapeHtml(src)}" loading="lazy" onerror="this.style.display='none'"></td>`;
+      return `<td class="icon"><img src="${escapeHtml(src)}" loading="lazy"></td>`;
     }
     if (column.type === "str") return `<td class="name">${escapeHtml(v ?? "")}</td>`;
     if (column.type === "badge") return `<td><span class="badge ${escapeHtml(v || '')}">${escapeHtml(v || '-')}</span></td>`;

@@ -42,10 +42,10 @@ class Player {
     // index 0-2が頭/胴/足、3-9がアクセサリー7枠
     const eq = detailRaw.items?.equipment || []
     this.equipment = {
-      head: eq[0] || null,
-      body: eq[1] || null,
-      legs: eq[2] || null,
-      accessories: eq.slice(3, 10)
+      head: eq[TINV_EQUIPMENT_INDEX.head] || null,
+      body: eq[TINV_EQUIPMENT_INDEX.body] || null,
+      legs: eq[TINV_EQUIPMENT_INDEX.legs] || null,
+      accessories: eq.slice(TINV_EQUIPMENT_INDEX.accessoryStart, TINV_EQUIPMENT_INDEX.accessoryStart + ACCESSORY_SLOT_COUNT)
     }
   }
 

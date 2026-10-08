@@ -10,34 +10,33 @@ class CalculatorView {
     this.sets = { A: new ArmorSet(), B: new ArmorSet() };
   }
 
-  getArmorPool(bannedFilter) {
-    // Banフィルタ("hide"/"only"/"all")を適用した候補の配列を返す
-    return Object.values(this.dataStore.armorPieces)
-      .filter(a => bannedFilter !== "hide" || !a.Banned);
+  getArmorPool() {
+    // 入力候補(datalist)に出す、Banされていない防具の配列を返す
+    // 一覧タブのBanフィルタには依存しない(計算機にBan済みは入れられないため常に除外)
+    return Object.values(this.dataStore.armorPieces).filter(a => !a.Banned);
   }
 
-  getAccessoryPool(bannedFilter) {
-    // Banフィルタ候補(Accessoryインスタンス)の配列を返す
-    return Object.values(this.dataStore.accessories)
-      .filter(a => bannedFilter !== "hide" || !a.isBanned);
+  getAccessoryPool() {
+    // 入力候補(datalist)に出す、Banされていないアクセサリー(Accessoryインスタンス)の配列を返す
+    return Object.values(this.dataStore.accessories).filter(a => !a.isBanned);
   }
 
-  render(bannedFilter) {
+  render() {
     // 計算機全体のHTMLを組み立ててcontainerに描画
     // 防具データが無ければ案内文のみ表示
-    const armorPool = this.getArmorPool(bannedFilter);
+    const armorPool = this.getArmorPool();
     if (!armorPool.length) {
       this.container.innerHTML = '<div class="empty">先に「データを取得/更新」で防具データを取得してね。</div>';
       return;
     }
-    const accessoryPool = this.getAccessoryPool(bannedFilter);
+    const accessoryPool = this.getAccessoryPool();
 
     this.container.innerHTML = `
       <div class="calc-wrap">
         ${this._renderSetPanel("A", armorPool, accessoryPool)}
         <div class="calc-copy-controls">
-          <button onclick="app.copyCalcSet('A','B')">A-&gt;B</button>
-          <button onclick="app.copyCalcSet('B','A')">B-&gt;A</button>
+          <button data-action="copy-set" data-from="A" data-to="B">A-&gt;B</button>
+          <button data-action="copy-set" data-from="B" data-to="A">B-&gt;A</button>
         </div>
         ${this._renderSetPanel("B", armorPool, accessoryPool)}
       </div>
@@ -54,7 +53,7 @@ class CalculatorView {
     const armorRows = slots.map(([slot, label]) => `
       <div class="calc-row">
         <label>${label}</label>
-        <input type="text" list="dl-${setId}-${slot}" placeholder="名前で検索..." value="${escapeHtml(set[slot]?.Name || '')}" data-set="${setId}" data-slot="${slot}" oninput="app.onCalcArmorInput(this)">
+        <input type="text" list="dl-${setId}-${slot}" placeholder="名前で検索..." value="${escapeHtml(set[slot]?.Name || '')}" data-set="${setId}" data-slot="${slot}" data-action="calc-armor">
         <datalist id="dl-${setId}-${slot}">
           ${armorPool.filter(a => this.slotClassifier.classify(a.Name) === slot).sort((a, b) => a.Name.localeCompare(b.Name)).map(a => `<option value="${escapeHtml(a.Name)}">`).join("")}
         </datalist>
@@ -62,32 +61,33 @@ class CalculatorView {
 
     const accessoryRows = set.accessories.map((_, i) => `
       <div class="calc-row calc-acc-row">
-        <input type="text" list="dl-${setId}-acc-${i}" placeholder="アクセサリー ${i + 1}" value="${escapeHtml(set.accessories[i]?.name || '')}" data-set="${setId}" data-accidx="${i}" oninput="app.onCalcAccessoryInput(this)">
+        <input type="text" list="dl-${setId}-acc-${i}" placeholder="アクセサリー ${i + 1}" value="${escapeHtml(set.accessories[i]?.name || '')}" data-set="${setId}" data-accidx="${i}" data-action="calc-accessory">
         <datalist id="dl-${setId}-acc-${i}">
           ${accessoryPool.slice().sort((a, b) => a.name.localeCompare(b.name)).map(a => `<option value="${escapeHtml(a.name)}">`).join("")}
         </datalist>
-        <select data-set="${setId}" data-accidx="${i}" onchange="app.onCalcModifierChange(this)">
+        <select data-set="${setId}" data-accidx="${i}" data-action="calc-modifier">
           <option value="" ${set.modifiers[i] === "" ? "selected" : ""}>-</option>
-          <option value="menacing" ${set.modifiers[i] === "menacing" ? "selected" : ""}>menacing (+4% dmg)</option>
-          <option value="warding" ${set.modifiers[i] === "warding" ? "selected" : ""}>warding (+4 def)</option>
+          <option value="menacing" ${set.modifiers[i] === "menacing" ? "selected" : ""}>menacing (+${MODIFIER_MENACING_DAMAGE}% dmg)</option>
+          <option value="warding" ${set.modifiers[i] === "warding" ? "selected" : ""}>warding (+${MODIFIER_WARDING_DEFENSE} def)</option>
         </select>
       </div>`).join("");
 
     return `<div class="calc-set"><h3>set${setId}</h3>${armorRows}
       <label class="calc-toggle">
-        <input type="checkbox" ${set.sakeEnabled ? "checked" : ""} onchange="app.onSakeToggle('${setId}', this.checked)">
-        enable sake (Def -4, Melee +10%)
+        <input type="checkbox" ${set.sakeEnabled ? "checked" : ""} data-action="calc-sake" data-set="${setId}">
+        enable sake (Def ${SAKE_DEFENSE_MODIFIER}, Melee +${SAKE_MELEE_BONUS}%)
       </label>
-      <h3 class="calc-acc-heading">アクセサリー(最大7)</h3>
+      <h3 class="calc-acc-heading">アクセサリー(最大${ACCESSORY_SLOT_COUNT})</h3>
       ${accessoryRows}
     </div>`;
   }
 
-  onArmorInput(setId, slot, value, bannedFilter) {
-    // 頭/胴/足の入力を受けてArmorSetを更新する。Ban済みアイテムは拒否してfalseを返す。
+  onArmorInput(setId, slot, value) {
+    // 頭/胴/足の入力を受けてArmorSetを更新する。Ban済みアイテムは警告を出して拒否しfalseを返す。
     // 反映できた場合はtrueを返す(呼び出し側で入力欄の表示を戻すかの判断に使う)。
-    const pool = this.getArmorPool(bannedFilter);
-    const match = pool.find(a => a.Name === value && this.slotClassifier.classify(a.Name) === slot);
+    // 候補にはBan済みが出ないので、Ban判定は全防具から探して行う
+    const match = Object.values(this.dataStore.armorPieces)
+      .find(a => a.Name === value && this.slotClassifier.classify(a.Name) === slot);
 
     if (match && match.Banned) {
       alert(`${match.Name}\nBanされてるアイテムは計算機に入れられないよ`);
@@ -99,11 +99,11 @@ class CalculatorView {
     return true;
   }
 
-  onAccessoryInput(setId, index, value, bannedFilter) {
+  onAccessoryInput(setId, index, value) {
     // アクセサリー入力を受けて重複/ウィング競合をチェックし、問題なければArmorSetに反映する。
     // 反映できた場合はtrue、重複/競合で弾いた場合はfalseを返す(入力欄の表示を戻すかの判断用)。
     const set = this.sets[setId];
-    const match = this.getAccessoryPool(bannedFilter).find(a => a.name === value);
+    const match = Object.values(this.dataStore.accessories).find(a => a.name === value);
 
     if (match) {
       if (match.isBanned) {
@@ -137,10 +137,10 @@ class CalculatorView {
     this.renderResult();
   }
 
-  copySet(fromId, toId, bannedFilter) {
+  copySet(fromId, toId) {
     // fromセットの内容をtoセットに、計算機タブ全体を再描画
     this.sets[toId] = this.sets[fromId].clone();
-    this.render(bannedFilter);
+    this.render();
   }
 
   renderResult() {
@@ -171,7 +171,7 @@ class CalculatorView {
     const effectRows = [
       ["Regen", effectsA.regen, effectsB.regen, v => `+${v}`],
       ["DR", effectsA.dr, effectsB.dr, v => `+${v}%`],
-      ["Life Potion CT", effectsA.potionCooldown, effectsB.potionCooldown, () => "cut25%"],
+      ["Life Potion CT", effectsA.potionCooldown, effectsB.potionCooldown, () => `cut${POTION_COOLDOWN_REDUCTION_PERCENT}%`],
       ["Dash", effectsA.dash, effectsB.dash, () => "Can Dash"],
       ["Wing", effectsA.wing, effectsB.wing, () => "jump to fly"]
     ].filter(([, av, bv]) => av || bv);

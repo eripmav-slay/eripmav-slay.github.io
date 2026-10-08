@@ -20,7 +20,7 @@ class AccessoryEffectRegistry {
       regen: found?.regen || 0,
       dr: found?.dr || 0,
       potionCooldown: found?.potionCooldown || false,
-      Dash: found?.Dash || false,
+      dash: found?.dash || false,
       group: found?.group || null
     };
   }

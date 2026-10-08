@@ -1,7 +1,7 @@
 // APIのCurrentXXXフィールドには出てこない、アクセサリー固有の効果だけを列挙したデータ
 // nameはAPIのName(表示名)と完全一致させること
 // ここに無い名前は全部デフォルト(効果なし)扱いになるので注意
-// 数値(name, wing, doubleTapDash, potionCooldown, regen, dr, group)
+// 数値(name, wing, dash, potionCooldown, regen, dr, group)
 // group: 同じ文字列を持つもの同士は同時装備しても効果が1個分しか乗らない
 const ACCESSORY_EFFECT_DATA = [
   { name: "Solar Wings",          wing: true, group: "wing" },
@@ -10,9 +10,9 @@ const ACCESSORY_EFFECT_DATA = [
   { name: "Betsy's Wings",        wing: true, group: "wing" },
   { name: "Fishron Wings",        wing: true, group: "wing" },
 
-  { name: "Tabi",                 Dash: true, group: "dash" },
-  { name: "Shield of Cthulhu",    Dash: true, group: "dash" },
-  { name: "Master Ninja Gear",    Dash: true, group: "dash" },
+  { name: "Tabi",                 dash: true, group: "dash" },
+  { name: "Shield of Cthulhu",    dash: true, group: "dash" },
+  { name: "Master Ninja Gear",    dash: true, group: "dash" },
 
   { name: "Worm Scarf",           dr: 17 },
 
