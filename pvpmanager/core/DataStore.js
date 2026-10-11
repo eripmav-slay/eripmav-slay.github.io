@@ -3,9 +3,10 @@
  * アクセサリーをAccessoryインスタンスに変換する処理はここで一度だけ
  */
 class DataStore {
-  constructor(apiClient, effectRegistry) {
+  constructor(apiClient, effectRegistry, buffStore) {
     this.apiClient = apiClient;
     this.effectRegistry = effectRegistry;
+    this.buffStore = buffStore;
     this.weapons = {};
     this.armorPieces = {};
     this.projectiles = {};
@@ -86,5 +87,42 @@ class DataStore {
     });
 
     return errors;
+  }
+
+  _forEachItem(callback) {
+    // 武器/防具/アクセサリーを同じ形で callback(category, netId, name, banned, raw) に渡す
+    // categoryはBUFF_CATEGORY_LABELSのキー、rawは一覧APIの生データ
+    Object.values(this.weapons).forEach(w => callback("weapons", w.NetID, w.Name, !!w.Banned, w));
+    Object.values(this.armorPieces).forEach(a => callback("armorPieces", a.NetID, a.Name, !!a.Banned, a));
+    Object.values(this.accessories).forEach(acc => callback("accessories", acc.netId, acc.name, acc.isBanned, acc.raw));
+  }
+
+  getBuffInfo(category, netId, raw) {
+    // バフ詳細(個別API)を取得済みならそれを、無ければ一覧APIのデータから作ったBuffInfoを返す
+    return this.buffStore.get(category, netId) || new BuffInfo(raw);
+  }
+
+  async loadBuffDetails(onProgress) {
+    // 一覧APIでバフ関連のフィールドを持っているアイテムだけ、バフ詳細(個別API)を取得する
+    // (全アイテムを取ると数千リクエストになるため。一覧にフィールドが全く無いアイテムは対象外)
+    // 失敗があればエラーメッセージの配列を返す(失敗したアイテムは一覧のデータで表示する)
+    const targets = [];
+    this._forEachItem((category, netId, name, banned, raw) => {
+      if (BuffInfo.hasBuffFields(raw)) targets.push({ category, netId, name });
+    });
+    const failures = await this.buffStore.load(targets, onProgress);
+    if (!failures.length) return [];
+    return [`バフ詳細の取得に失敗: ${failures.length}/${targets.length}件 (${failures[0].name}: ${failures[0].message}) 一覧のデータで代用しています`];
+  }
+
+  getBuffItems() {
+    // バフを1つでも持つ 武器/防具/アクセサリー を、共通の形の配列で返す
+    // 要素は { category, netId, name, banned, buffs(BuffInfo) }
+    const result = [];
+    this._forEachItem((category, netId, name, banned, raw) => {
+      const buffs = this.getBuffInfo(category, netId, raw);
+      if (buffs.hasAny()) result.push({ category, netId, name, banned, buffs });
+    });
+    return result;
   }
 }

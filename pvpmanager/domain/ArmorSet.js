@@ -102,6 +102,35 @@ class ArmorSet {
     return effects;
   }
 
+  collectBuffs(getInfo = (category, raw) => new BuffInfo(raw)) {
+    // 装備中の防具とアクセサリーが付与するバフ/デバフを、BUFF_KINDSのkindごとにまとめて返す
+    // getInfo(category, 生データ)でBuffInfoを引く(categoryは"armorPieces"か"accessories"、DataStore.getBuffInfoを渡す想定)
+    // { kindのkey: [{ id, ms, sources }] } の形、sourcesは付与元の装備名の配列
+    // 同じIDは1つにまとめて、持続時間は最大値を採る
+    const byKind = {};
+    BUFF_KINDS.forEach(kind => { byKind[kind.key] = new Map(); });
+
+    const collect = (sourceName, category, raw) => {
+      // 1つの装備(APIの生データ)のバフをbyKindに足し込む
+      const info = getInfo(category, raw);
+      BUFF_KINDS.forEach(kind => {
+        info.get(kind.key).forEach(b => {
+          const current = byKind[kind.key].get(b.id) || { id: b.id, ms: 0, sources: [] };
+          current.ms = Math.max(current.ms, b.ms);
+          if (!current.sources.includes(sourceName)) current.sources.push(sourceName);
+          byKind[kind.key].set(b.id, current);
+        });
+      });
+    };
+
+    this.getArmorPieces().forEach(piece => collect(piece.Name, "armorPieces", piece));
+    this.accessories.forEach(acc => { if (acc) collect(acc.name, "accessories", acc.raw); });
+
+    const result = {};
+    BUFF_KINDS.forEach(kind => { result[kind.key] = [...byKind[kind.key].values()]; });
+    return result;
+  }
+
   clone() {
     // このセットの内容を丸ごと複製した新しいArmorSetを返す(A->Bコピー機能用)
     const copy = new ArmorSet();

@@ -3,10 +3,11 @@
  * escapeHtml() は utils.js で定義されている関数
  */
 class CalculatorView {
-  constructor(dataStore, slotClassifier, container) {
+  constructor(dataStore, slotClassifier, container, buffRegistry) {
     this.dataStore = dataStore;
     this.slotClassifier = slotClassifier;
     this.container = container;
+    this.buffRegistry = buffRegistry;
     this.sets = { A: new ArmorSet(), B: new ArmorSet() };
   }
 
@@ -183,7 +184,41 @@ class CalculatorView {
       });
     }
 
+    const getInfo = (category, raw) => this.dataStore.getBuffInfo(category, raw.NetID, raw);
+    html += this._renderBuffRows(this.sets.A.collectBuffs(getInfo), this.sets.B.collectBuffs(getInfo));
+
     html += '</tbody></table>';
     box.innerHTML = html;
+  }
+
+  _renderBuffRows(buffsA, buffsB) {
+    // 装備中の防具/アクセサリーが付与するバフ/デバフの比較行(trのHTML文字列)を返す
+    // BUFF_KINDSのkindごとに見出し行+バフごとの行、どちらのセットにも無いkindは出さない
+    // セルは持続時間(showDurationなkind)か「あり」、ツールチップに付与元の装備名を入れる
+    const cell = (entry, kind) => {
+      if (!entry) return '<td class="num">-</td>';
+      const text = kind.showDuration ? this.buffRegistry.formatDuration(entry.ms) : "enable";
+      return `<td class="num" title="${escapeHtml(entry.sources.join(", "))}">${escapeHtml(text)}</td>`;
+    };
+
+    let html = "";
+    BUFF_KINDS.forEach(kind => {
+      const byId = new Map();
+      buffsA[kind.key].forEach(e => byId.set(e.id, { a: e, b: null }));
+      buffsB[kind.key].forEach(e => {
+        const current = byId.get(e.id) || { a: null, b: null };
+        current.b = e;
+        byId.set(e.id, current);
+      });
+      if (!byId.size) return;
+
+      html += `<tr class="calc-subhead"><td colspan="3">buff/debuff: ${escapeHtml(kind.label)}</td></tr>`;
+      [...byId.entries()]
+        .sort((x, y) => this.buffRegistry.getName(x[0]).localeCompare(this.buffRegistry.getName(y[0])))
+        .forEach(([id, pair]) => {
+          html += `<tr><td title="Buff ID ${escapeHtml(id)}">${this.buffRegistry.renderLabel(id)}</td>${cell(pair.a, kind)}${cell(pair.b, kind)}</tr>`;
+        });
+    });
+    return html;
   }
 }

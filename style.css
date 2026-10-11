@@ -124,6 +124,9 @@ td.name{font-weight:600; white-space:normal; min-width:140px;}
 td.icon{width:32px; padding-right:2px;}
 td.icon img{width:26px; height:26px; object-fit:contain; image-rendering:pixelated; display:block;}
 .num{font-family:var(--mono); text-align:right;}
+.buff-line{white-space:nowrap;}
+.buff-icon{width:20px; height:20px; margin-right:6px; vertical-align:middle; object-fit:contain; image-rendering:pixelated;}
+.buff-dur{font-family:var(--mono); font-size:11px; color:var(--muted); margin-left:6px;}
 .basehint{display:block; font-size:10px; color:var(--muted); font-weight:400;}
 .badge{
   display:inline-block; width:64px; text-align:center;
@@ -211,27 +214,24 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 }
 .calc-misc-empty{font-size:13px; color:var(--muted);}
 
-.member-main{min-width:990px;} /* 固定サイズのアイコンが収まる最小幅、これより狭くはしない */
+.member-main{min-width:990px;} 
 .member-table{
-  --icon-size:36px; --icon-gap:4px; /* アイコンの大きさはスライダーで変えない、変わるのは余白だけ */
+  --icon-size:36px; --icon-gap:4px; 
   font-size:15px;
-  table-layout:fixed; /* 列幅を中身ではなくcolで決めて、行ごとのアイコン数の差で列がズレないようにする */
+  table-layout:fixed; 
 }
 .member-table th{font-size:12px;}
 .member-table td{padding:10px 8px;}
-.member-table td.num{text-align:left;} /* 見出しが左寄せなので数字も左寄せにして位置を揃える */
+.member-table td.num{text-align:left;} 
 .member-row{cursor:pointer}
 .member-row:hover{background:var(--panel2)}
 
-/* 列幅は%にして、幅が変わった時の余白を全列で按分する(合計100%) */
-/* 比率はアイコン固定サイズでの必要幅に合わせてある(name120/stat90x2/armor136/acc296/hotbar212px、合計944px) */
 .member-table col.col-name{width:12.7%;}
 .member-table col.col-stat{width:9.5%;}
 .member-table col.col-armor{width:14.4%;}
 .member-table col.col-acc{width:31.4%;}
 .member-table col.col-hotbar{width:22.5%;}
 
-/* 装備系の3列は縦の区切り線を入れて、まとまりとして見えるようにする */
 .member-table .eq-group{border-left:1px solid var(--border);}
 
 .member-stat{
@@ -243,11 +243,11 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 
 .icon-row{
   display:flex; flex-wrap:wrap; align-items:center; gap:var(--icon-gap);
-  min-height:var(--icon-size); /* アイコンが0個でも行の高さが変わらないように */
+  min-height:var(--icon-size); 
 }
 .icon-row.hotbar-grid{
-  display:grid; grid-template-columns:repeat(5, var(--icon-size)); /* 横5個で折り返して縦2段にする */
-  min-height:calc(var(--icon-size) * 2 + var(--icon-gap)); /* 5個以下の人も2段分の高さにして、行ごとの高さを揃える */
+  display:grid; grid-template-columns:repeat(5, var(--icon-size)); 
+  min-height:calc(var(--icon-size) * 2 + var(--icon-gap)); 
   align-content:center;
 }
 .hotbar-icon{

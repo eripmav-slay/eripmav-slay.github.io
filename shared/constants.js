@@ -22,6 +22,14 @@ const API_FETCH_LIMIT = 10000;
 // 1回の通信(レスポンス本文の読み込みまで)を打ち切るまでの時間(ms)の指定値
 const FETCH_TIMEOUT_MS = 15000;               
 
+// ---- バフ表示 ----
+// ミリ秒を秒に換算する時の指定値
+const MS_PER_SECOND = 1000;                   
+// バフ持続時間(秒)を表示する小数桁数の指定値
+const BUFF_DURATION_DECIMALS = 1;             
+// バフ詳細(個別API)を同時に取得するアイテム数の指定値(1アイテムにつき4リクエスト)
+const BUFF_FETCH_CONCURRENCY = 4;             
+
 // ---- tinv(メンバータブ) ----
 // tinvのitems.equipment配列内の添字の指定値(accessoryStartからACCESSORY_SLOT_COUNT枠がアクセサリー)
 const TINV_EQUIPMENT_INDEX = { head: 0, body: 1, legs: 2, accessoryStart: 3 };
@@ -30,6 +38,6 @@ const MEMBER_STATS_INTERVAL_MS = 5000;
 // 防具/アクセサリーの更新間隔(ms)の指定値
 const MEMBER_EQUIPMENT_INTERVAL_MS = 3000;    
 // 一覧取得がこの回数連続で失敗したらAPI Dead表示にする指定値
-const MEMBER_STATS_MAX_FAILURES = 5;          
+const MEMBER_STATS_MAX_FAILURES = 3;          
 // 装備取得が全員分この回数連続で失敗したらAPI died扱いにする指定値
 const MEMBER_EQUIPMENT_MAX_FAILURES = 4;      

@@ -4,15 +4,17 @@
  * render/sort/filterのロジック自体はカテゴリを意識しないようにするよ
  */
 class TableView {
-  constructor(dataStore, slotClassifier, container) {
+  constructor(dataStore, slotClassifier, container, buffRegistry) {
     this.dataStore = dataStore;
     this.slotClassifier = slotClassifier;
     this.container = container;
+    this.buffRegistry = buffRegistry;
     this.sortState = {
       weapons: { col: "Name", dir: 1 },
       armorPieces: { col: "Name", dir: 1 },
       accessories: { col: "name", dir: 1 },
-      projectiles: { col: "Name", dir: 1 }
+      projectiles: { col: "Name", dir: 1 },
+      buffs: { col: "name", dir: 1 }
     };
   }
 
@@ -70,6 +72,29 @@ class TableView {
         ]
       };
     }
+    if (catKey === "buffs") {
+      // バフタブはDataStore.getBuffItems()の要素 { category, netId, name, banned, buffs } を扱う
+      // バフ名でも検索できるように、getSearchExtraでバフ名を連結した文字列を返す
+      return {
+        getName: item => item.name,
+        getBanned: item => item.banned,
+        getSearchExtra: item => BUFF_KINDS
+          .flatMap(kind => item.buffs.get(kind.key))
+          .map(b => this.buffRegistry.getName(b.id).toLowerCase())
+          .join("\n"),
+        columns: [
+          { label: "", type: "icon", get: item => item.netId },
+          { label: "名前", type: "str", sortKey: "name", get: item => item.name },
+          { label: "種別", type: "text", sortKey: "category", get: item => BUFF_CATEGORY_LABELS[item.category] },
+          ...BUFF_KINDS.map(kind => ({
+            label: kind.label, type: "buffs", sortKey: kind.key, kind,
+            get: item => item.buffs.get(kind.key),
+            sortValue: item => item.buffs.get(kind.key).length // 並べ替えはバフの個数で行う
+          })),
+          { label: "Banned", type: "bool", sortKey: "banned", get: item => item.banned }
+        ]
+      };
+    }
     // projectiles
     return {
       getName: item => item.Name,
@@ -86,8 +111,15 @@ class TableView {
   }
 
   populateTypeFilter(selectEl, catKey) {
-    // weaponsならWeaponTypeの一覧を選択肢に
-    // weapons以外では選択肢を空にして非表示
+    // weaponsならWeaponTypeの一覧、buffsならカテゴリ(武器/防具/アクセサリー)を選択肢に
+    // それ以外では選択肢を空にして非表示
+    if (catKey === "buffs") {
+      selectEl.style.display = "inline-block";
+      selectEl.innerHTML = ['<option value="">全種別(all category)</option>']
+        .concat(Object.entries(BUFF_CATEGORY_LABELS).map(([v, l]) => `<option value="${escapeHtml(v)}">${escapeHtml(l)}</option>`))
+        .join("");
+      return;
+    }
     if (catKey !== "weapons") { selectEl.style.display = "none"; return; }
     selectEl.style.display = "inline-block";
     const types = new Set(Object.values(this.dataStore.weapons).map(w => w.WeaponType || "不明"));
@@ -97,7 +129,15 @@ class TableView {
   }
 
   populateSlotFilter(selectEl, catKey) {
-    // armorPieces以外では非表示
+    // armorPiecesなら部位、buffsなら付与タイミング(BUFF_KINDS)を選択肢に
+    // それ以外では非表示
+    if (catKey === "buffs") {
+      selectEl.style.display = "inline-block";
+      selectEl.innerHTML = ['<option value="">全タイミング(all kind)</option>']
+        .concat(BUFF_KINDS.map(k => `<option value="${escapeHtml(k.key)}">${escapeHtml(k.label)}</option>`))
+        .join("");
+      return;
+    }
     if (catKey !== "armorPieces") { selectEl.style.display = "none"; selectEl.value = ""; return; }
     selectEl.style.display = "inline-block";
     const opts = [
@@ -110,7 +150,8 @@ class TableView {
   render(catKey, options) {
     // 一覧タブを描画
     // optionsは { search, typeFilter, slotFilter, bannedFilter, countEl }
-    const items = Object.values(this.dataStore[catKey]);
+    // buffsタブではtypeFilterをカテゴリ、slotFilterを付与タイミング(BUFF_KINDSのkey)として使う
+    const items = catKey === "buffs" ? this.dataStore.getBuffItems() : Object.values(this.dataStore[catKey]);
     if (!items.length) {
       this.container.innerHTML = '<div class="empty">データがないよ。「データを取得/更新」を押してね。</div>';
       if (options.countEl) options.countEl.textContent = "";
@@ -123,17 +164,20 @@ class TableView {
     const filtered = items.filter(item => {
       if (options.bannedFilter === "hide" && config.getBanned(item)) return false;
       if (options.bannedFilter === "only" && !config.getBanned(item)) return false;
-      if (q && !config.getName(item).toLowerCase().includes(q)) return false;
+      if (q && !config.getName(item).toLowerCase().includes(q) && !(config.getSearchExtra?.(item) || "").includes(q)) return false;
       if (catKey === "weapons" && options.typeFilter && item.WeaponType !== options.typeFilter) return false;
       if (catKey === "armorPieces" && options.slotFilter && this.slotClassifier.classify(item.Name) !== options.slotFilter) return false;
+      if (catKey === "buffs" && options.typeFilter && item.category !== options.typeFilter) return false;
+      if (catKey === "buffs" && options.slotFilter && !item.buffs.get(options.slotFilter).length) return false;
       return true;
     });
 
     const st = this.sortState[catKey];
     const sortCol = config.columns.find(c => c.sortKey === st.col);
     filtered.sort((a, b) => {
-      let av = sortCol ? sortCol.get(a) : null;
-      let bv = sortCol ? sortCol.get(b) : null;
+      const valueOf = item => !sortCol ? null : sortCol.sortValue ? sortCol.sortValue(item) : sortCol.get(item);
+      let av = valueOf(a);
+      let bv = valueOf(b);
       if (typeof av === "string" || typeof bv === "string") {
         av = (av ?? "").toString().toLowerCase(); bv = (bv ?? "").toString().toLowerCase();
         return av < bv ? -1 * st.dir : av > bv ? 1 * st.dir : 0;
@@ -186,6 +230,10 @@ class TableView {
         hint = `<span class="basehint">base ${escapeHtml(base)}</span>`;
       }
       return `<td class="num">${escapeHtml(shown)}${hint}</td>`;
+    }
+    if (column.type === "text") return `<td>${escapeHtml(v ?? "")}</td>`;
+    if (column.type === "buffs") {
+      return `<td>${v.map(b => this.buffRegistry.renderLine(b, column.kind.showDuration)).join("")}</td>`;
     }
     return `<td></td>`;
   }

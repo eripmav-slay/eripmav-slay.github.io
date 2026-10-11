@@ -7,7 +7,9 @@ class App {
   constructor() {
     this.apiClient = new ApiClient(BASE);
     this.effectRegistry = new AccessoryEffectRegistry(ACCESSORY_EFFECT_DATA);
-    this.dataStore = new DataStore(this.apiClient, this.effectRegistry);
+    this.buffStore = new BuffStore(this.apiClient);
+    this.dataStore = new DataStore(this.apiClient, this.effectRegistry, this.buffStore);
+    this.buffRegistry = new BuffRegistry(BUFF_NAMES);
     this.slotClassifier = new SlotClassifier(
       HEAD_ITEM_NAMES, HEAD_KEYWORDS,
       BODY_ITEM_NAMES, BODY_KEYWORDS,
@@ -15,8 +17,8 @@ class App {
     );
 
     const mainEl = document.getElementById("main");
-    this.tableView = new TableView(this.dataStore, this.slotClassifier, mainEl);
-    this.calculatorView = new CalculatorView(this.dataStore, this.slotClassifier, mainEl);
+    this.tableView = new TableView(this.dataStore, this.slotClassifier, mainEl, this.buffRegistry);
+    this.calculatorView = new CalculatorView(this.dataStore, this.slotClassifier, mainEl, this.buffRegistry);
 
     // memberMainは他のタブに切り替えても中身を消さない専用コンテナ
     // ホットバー画像の再取得/再生成を防ぐため
@@ -223,16 +225,23 @@ class App {
       this._setStatus(`読み込み中 (${done}/${total})...`, true);
     });
 
-    btn.disabled = false;
-    this._setStatus("");
-
+    // 一覧のデータでいったん描画してから、バフ詳細(個別API)を取得して描き直す
     if (this.currentCat !== "calculator") {
       this.tableView.populateTypeFilter(document.getElementById("typeFilter"), this.currentCat);
       this.tableView.populateSlotFilter(document.getElementById("slotFilter"), this.currentCat);
     }
     this.render();
 
-    if (errors.length) this._showFetchError(errors);
+    const buffErrors = await this.dataStore.loadBuffDetails((done, total) => {
+      this._setStatus(`バフ取得中 (${done}/${total})...`, true);
+    });
+
+    btn.disabled = false;
+    this._setStatus("");
+    this.render();
+
+    const allErrors = errors.concat(buffErrors);
+    if (allErrors.length) this._showFetchError(allErrors);
   }
 
   _setStatus(text, spinning = false) {
