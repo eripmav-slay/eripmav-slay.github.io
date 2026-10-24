@@ -285,10 +285,9 @@ class CalculatorView {
   _renderBuffRows(buffsA, buffsB) {
     // 装備中の防具/アクセサリーが付与するバフ/デバフの比較行(trのHTML文字列)を返す
     // BUFF_KINDSのkindごとに見出し行+バフごとの行、どちらのセットにも無いkindは出さない
-    // セルは持続時間(showDurationなkind)か「あり」、ツールチップに付与元の装備名を入れる
     const cell = (entry, kind) => {
       if (!entry) return '<td class="num">-</td>';
-      const text = kind.showDuration ? this.buffRegistry.formatDuration(entry.ms) : "あり";
+      const text = kind.showDuration ? this.buffRegistry.formatDuration(entry.ms) : "enable";
       return `<td class="num" title="${escapeHtml(entry.sources.join(", "))}">${escapeHtml(text)}</td>`;
     };
 
