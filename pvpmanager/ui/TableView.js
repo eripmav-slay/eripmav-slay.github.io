@@ -44,7 +44,7 @@ class TableView {
         getBanned: item => !!item.Banned,
         columns: [
           { label: "", type: "icon", get: item => item.NetID },
-          { label: "名前", type: "str", sortKey: "Name", get: item => item.Name },
+          { label: "Name", type: "str", sortKey: "Name", get: item => item.Name },
           { label: "Defense", type: "effnum", sortKey: "CurrentDefense", get: item => item.CurrentDefense, base: item => item.BaseDefense },
           { label: "Melee%", type: "effnum", sortKey: "CurrentMeleeDamagePercentage", get: item => item.CurrentMeleeDamagePercentage, base: item => item.BaseMeleeDamagePercentage },
           { label: "Magic%", type: "effnum", sortKey: "CurrentMagicDamagePercentage", get: item => item.CurrentMagicDamagePercentage, base: item => item.BaseMagicDamagePercentage },
@@ -61,7 +61,7 @@ class TableView {
         getBanned: item => item.isBanned,
         columns: [
           { label: "", type: "icon", get: item => item.netId },
-          { label: "名前", type: "str", sortKey: "name", get: item => item.name },
+          { label: "Name", type: "str", sortKey: "name", get: item => item.name },
           { label: "Defense", type: "num", sortKey: "defense", get: item => item.getDefenseBonus() },
           { label: "Melee%", type: "num", sortKey: "melee", get: item => item.getDamageBonus("Melee") },
           { label: "Magic%", type: "num", sortKey: "magic", get: item => item.getDamageBonus("Magic") },
@@ -84,8 +84,8 @@ class TableView {
           .join("\n"),
         columns: [
           { label: "", type: "icon", get: item => item.netId },
-          { label: "名前", type: "str", sortKey: "name", get: item => item.name },
-          { label: "種別", type: "text", sortKey: "category", get: item => BUFF_CATEGORY_LABELS[item.category] },
+          { label: "Name", type: "str", sortKey: "name", get: item => item.name },
+          { label: "Category", type: "text", sortKey: "category", get: item => BUFF_CATEGORY_LABELS[item.category] },
           ...BUFF_KINDS.map(kind => ({
             label: kind.label, type: "buffs", sortKey: kind.key, kind,
             get: item => item.buffs.get(kind.key),
@@ -100,7 +100,7 @@ class TableView {
       getName: item => item.Name,
       getBanned: item => !!item.Banned,
       columns: [
-        { label: "名前", type: "str", sortKey: "Name", get: item => item.Name },
+        { label: "Name", type: "str", sortKey: "Name", get: item => item.Name },
         { label: "Dmg 倍率", type: "num", sortKey: "DamageRatio", get: item => item.DamageRatio },
         { label: "Vel 倍率", type: "num", sortKey: "VelocityRatio", get: item => item.VelocityRatio },
         { label: "Min Damage", type: "num", sortKey: "MinDamage", get: item => item.MinDamage },
@@ -197,8 +197,8 @@ class TableView {
       if (c.type === "icon") { html += `<th></th>`; return; }
       const sorted = sortState.col === c.sortKey;
       const arrow = sorted ? (sortState.dir === 1 ? "▲" : "▼") : "";
-      const align = (c.type === "num" || c.type === "effnum") ? "text-align:right;" : "";
-      html += `<th style="${align}" class="${sorted ? 'sorted' : ''}" data-action="sort" data-cat="${catKey}" data-sort-key="${c.sortKey}">${c.label}<span class="arrow">${arrow}</span></th>`;
+      const classes = [sorted ? "sorted" : "", (c.type === "num" || c.type === "effnum") ? "th-num" : ""].filter(Boolean).join(" ");
+      html += `<th class="${classes}" data-action="sort" data-cat="${catKey}" data-sort-key="${c.sortKey}">${c.label}<span class="arrow">${arrow}</span></th>`;
     });
     html += '</tr></thead><tbody>';
     items.forEach(item => {

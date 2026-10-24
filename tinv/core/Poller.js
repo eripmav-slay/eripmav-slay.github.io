@@ -21,12 +21,21 @@ class Poller {
     this.timerId = null
   }
 
+  runNow() {
+    // タイマーとは別に今すぐ1回実行する、実行中なら何もしない
+    // callbackの完了で解決するPromiseを返す(データ更新ボタンから呼ぶ用)
+    return this._run()
+  }
+
   async _run() {
     // 前回のcallbackが終わっていなければ今回は飛ばす
+    // callbackの例外はここで受けてコンソールに出す(setIntervalからは誰も受け取れず、未処理のrejectionになるため)
     if (this.running) return
     this.running = true
     try {
       await this.callback()
+    } catch (e) {
+      console.error("Poller: callbackで例外", e)
     } finally {
       this.running = false
     }

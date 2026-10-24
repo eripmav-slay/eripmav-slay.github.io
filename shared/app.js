@@ -18,9 +18,12 @@ class App {
 
     const mainEl = document.getElementById("main");
     this.tableView = new TableView(this.dataStore, this.slotClassifier, mainEl, this.buffRegistry);
-    this.calculatorView = new CalculatorView(this.dataStore, this.slotClassifier, mainEl, this.buffRegistry);
+    this.setBonusRegistry = new SetBonusRegistry(SET_BONUS_DATA);
+    this.calculatorView = new CalculatorView(
+      this.dataStore, this.slotClassifier, mainEl, this.buffRegistry, this.setBonusRegistry
+    );
 
-    // memberMainは他のタブに切り替えても中身を消さない専用コンテナ
+    // memberMainは他のタブに切り替えても中身を消さない
     // ホットバー画像の再取得/再生成を防ぐため
     const memberMainEl = document.getElementById("memberMain");
     this.pvpApiClient = new PvpApiClient();
@@ -31,6 +34,7 @@ class App {
 
     this.currentCat = "weapons";
     this.bannedFilter = "hide"; // "hide" | "only" | "all"
+    this.pendingBuildCode = BuildCodec.fromHash(location.hash); // 共有URLで開かれた時のコード、データ取得後に計算機へ反映する
 
     this._bindStaticEvents();
   }
@@ -53,17 +57,16 @@ class App {
     mainEl.addEventListener("input", e => this._onMainInput(e));
     mainEl.addEventListener("change", e => this._onMainChange(e));
     document.getElementById("memberMain").addEventListener("click", e => this._onMemberClick(e));
+    window.addEventListener("hashchange", () => this._onHashChange());
 
     this._syncTopbarHeight();
 
-    // 画像の読み込み失敗はバブリングしないので、キャプチャ段階でまとめて拾って非表示にする
     document.addEventListener("error", e => {
       if (e.target instanceof HTMLImageElement) e.target.style.display = "none";
     }, true);
   }
 
   _syncTopbarHeight() {
-    // 表の列見出し(thead)の固定位置をtopbarの実高さに合わせる(--topbar-height)
     // ヘッダーの折り返しやツールバーの表示切替で高さが変わるのでResizeObserverで追従する
     const topbar = document.querySelector(".topbar");
     const update = () => document.documentElement.style.setProperty("--topbar-height", `${topbar.offsetHeight}px`);
@@ -77,6 +80,8 @@ class App {
     if (!el) return;
     if (el.dataset.action === "sort") this.onTableSort(el.dataset.cat, el.dataset.sortKey);
     if (el.dataset.action === "copy-set") this.copyCalcSet(el.dataset.from, el.dataset.to);
+    if (el.dataset.action === "share-build") this.shareBuild();
+    if (el.dataset.action === "set-preset") this.onSetPresetClick(el.dataset.set, Number(el.dataset.index));
   }
 
   _onMainInput(e) {
@@ -186,9 +191,52 @@ class App {
     this.calculatorView.onSakeToggle(setId, checked);
   }
 
+  onSetPresetClick(setId, index) {
+    // セットを装備ボタンの押下をCalculatorViewに反映
+    this.calculatorView.onSetPresetClick(setId, index);
+  }
+
   copyCalcSet(fromId, toId) {
     // セットA/BのコピーをCalculatorViewに反映、計算機タブを再描画
     this.calculatorView.copySet(fromId, toId);
+  }
+
+  async shareBuild() {
+    // 今のセットA/BのURLをクリップボードにコピーしてステータス欄に知らせる
+    // クリップボードが使えない場合はpromptに出して手動コピーしてもらう
+    const url = location.href.split("#")[0] + BuildCodec.toHash(this.calculatorView.getBuildCode());
+    try {
+      await navigator.clipboard.writeText(url);
+      this._flashStatus("ビルドURLをコピーしたよ");
+    } catch (e) {
+      window.prompt("コピーできなかったので手動でコピーしてね (copy it manually)", url);
+    }
+  }
+
+  _onHashChange() {
+    // 同じタブで共有URLのハッシュに変わった時に、コードを取り出して反映する
+    const code = BuildCodec.fromHash(location.hash);
+    if (!code) return;
+    this.pendingBuildCode = code;
+    this._applyPendingBuild();
+  }
+
+  _applyPendingBuild() {
+    // 共有コードが待機中で防具データが取れていれば、計算機に読み込んで計算機タブに切り替える
+    // 防具データがまだ無ければ何もしない(コードは待機させたまま、次のloadAllで再挑戦する)
+    // 読み込めなかった項目があれば内容をalertで知らせる
+    if (!this.pendingBuildCode || !Object.keys(this.dataStore.armorPieces).length) return;
+    const code = this.pendingBuildCode;
+    this.pendingBuildCode = null;
+    history.replaceState(null, "", location.pathname + location.search); // 編集後のリロードで古いビルドに戻らないようハッシュを消す
+
+    const result = this.calculatorView.loadBuild(code);
+    this.switchTab("calculator", document.querySelector('.tab[data-cat="calculator"]'));
+    if (result.error) {
+      alert(`ビルドURLを読み込めなかったよ\n(invalid build URL)\n${result.error}`);
+    } else if (result.skipped.length) {
+      alert(`読み込めなかった項目があるよ\n(some items could not be loaded)\n${result.skipped.map(s => `・${s}`).join("\n")}`);
+    }
   }
 
   render() {
@@ -221,6 +269,9 @@ class App {
     btn.disabled = true;
     this._setStatus("読み込み中...", true);
 
+    // メンバータブのデータも一緒に更新する(通信の失敗はMembersView側で数えるので、ここでは待つだけ)
+    const memberTask = this.membersView.refreshAll();
+
     const errors = await this.dataStore.loadAll((done, total) => {
       this._setStatus(`読み込み中 (${done}/${total})...`, true);
     });
@@ -232,9 +283,15 @@ class App {
     }
     this.render();
 
+    this._warnMissingSetNames();
+    this._warnSlotClassification();
+    this._applyPendingBuild();
+
     const buffErrors = await this.dataStore.loadBuffDetails((done, total) => {
       this._setStatus(`バフ取得中 (${done}/${total})...`, true);
     });
+
+    await memberTask;
 
     btn.disabled = false;
     this._setStatus("");
@@ -242,6 +299,31 @@ class App {
 
     const allErrors = errors.concat(buffErrors);
     if (allErrors.length) this._showFetchError(allErrors);
+  }
+
+  _warnMissingSetNames() {
+    // setBonuses.jsにあるのに防具データに無い名前をコンソールに警告 typo検出用
+    const known = new Set(Object.values(this.dataStore.armorPieces).map(a => a.Name));
+    if (!known.size) return;
+    const missing = this.setBonusRegistry.findMissingNames(known);
+    if (missing.length) console.warn("setBonuses.js: 防具データに無い名前", missing);
+  }
+
+  _flashStatus(text) {
+    // ステータス欄に一時メッセージを出して、STATUS_FLASH_MS後に消す(その間に別の表示へ変わっていたら消さない)
+    this._setStatus(text);
+    const el = document.getElementById("status");
+    setTimeout(() => { if (el.textContent === text) this._setStatus(""); }, STATUS_FLASH_MS);
+  }
+
+  _warnSlotClassification() {
+    // 防具の部位判定が怪しい名前をコンソールに警告 実データでの誤分類の確認用
+    // 複数の部位に当たる名前(先に当たった部位に分類される)と、どこにも当たらない名前を出す
+    const names = Object.values(this.dataStore.armorPieces).map(a => a.Name);
+    if (!names.length) return;
+    const { ambiguous, unclassified } = this.slotClassifier.findIssues(names);
+    if (ambiguous.length) console.warn(`SlotClassifier: 複数の部位に当たる名前 ${ambiguous.length}件 (先に当たった部位に分類されている)`, ambiguous);
+    if (unclassified.length) console.warn(`SlotClassifier: 部位が判定できない名前 ${unclassified.length}件`, unclassified);
   }
 
   _setStatus(text, spinning = false) {

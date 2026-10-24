@@ -12,6 +12,7 @@ class DataStore {
     this.projectiles = {};
     this.accessories = {}; // NetID -> Accessoryインスタンス
     this.bannedEquipmentIds = new Set(); // settings.BannedEquipmentのID、settings取得に失敗した時は前回の値を使い続ける
+    this.weaponApiBannedIds = new Set(); // 武器の一覧APIが自前のBannedでtrueにしていたNetID、武器の取得に失敗した時は前回の値を使い続ける
   }
 
   async loadAll(onProgress) {
@@ -59,7 +60,10 @@ class DataStore {
     await Promise.all([...categoryTasks, settingsTask]);
 
     // 取得できたカテゴリだけ差し替える(失敗時に前回のデータを壊さないため)
-    if (fetched.weapons) this.weapons = fetched.weapons;
+    if (fetched.weapons) {
+      this.weapons = fetched.weapons;
+      this.weaponApiBannedIds = new Set(Object.values(fetched.weapons).filter(w => w.Banned).map(w => w.NetID));
+    }
     if (fetched.armorPieces) this.armorPieces = fetched.armorPieces;
     if (fetched.projectiles) this.projectiles = fetched.projectiles;
 
@@ -75,9 +79,10 @@ class DataStore {
 
     // settings.BannedEquipmentに載っているIDは武器/防具/アクセサリーどれもBanned扱いにする
     // 武器は自前のBannedフィールドも持っているので、どちらかがtrueならBanned
+    // (自前の値は取得時にweaponApiBannedIdsへ控えておく Bannedを上書きするので、取得し直さない回に前回の判定が残らないように)
     // アクセサリーは自前のBannedフィールドを持たないのでsettingsのリストだけで判定する
     Object.values(this.weapons).forEach(w => {
-      w.Banned = !!w.Banned || this.bannedEquipmentIds.has(w.NetID);
+      w.Banned = this.weaponApiBannedIds.has(w.NetID) || this.bannedEquipmentIds.has(w.NetID);
     });
     Object.values(this.armorPieces).forEach(a => {
       a.Banned = this.bannedEquipmentIds.has(a.NetID);

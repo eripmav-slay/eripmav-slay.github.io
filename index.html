@@ -7,7 +7,7 @@
     default-src 'self';
     img-src 'self' https://pvpmanager.dark-gaming.com https://tinvapi.dark-gaming.com data:;
     connect-src https://pvpcapi.dark-gaming.com https://tinvapi.dark-gaming.com;
-    style-src 'self' 'unsafe-inline';
+    style-src 'self';
     script-src 'self';
     object-src 'none';
     base-uri 'none';
@@ -23,7 +23,7 @@
     <header>
       <h1>Eripvp Data</h1>
       <span class="status" id="status"></span>
-      <label style="font-size:12px; color:var(--muted);">幅(width)</label>
+      <label class="width-label">幅(width)</label>
       <input type="range" id="widthSlider" min="800" max="2200" step="50" value="1400">
       <button class="primary" id="refreshBtn">データを取得/更新(sync)</button>
     </header>
@@ -56,12 +56,13 @@
   </main>
 
   <!-- 他のタブに切り替えてもDOM(画像含む)を破棄しない、非表示にするだけ -->
-  <div id="memberMain" class="member-main" style="display:none;">
+  <div id="memberMain" class="member-main">
     <div class="empty">読み込み中...</div>
   </div>
 
   <footer id="footer">データソース: pvpcapi.dark-gaming.com / 画像: pvpmanager.dark-gaming.com</footer>
 
+  <!-- 他の全スクリプトはloader.jsが依存関係順に動的読み込みする -->
   <script src="loader.js"></script>
   </body>
 </html>

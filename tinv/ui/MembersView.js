@@ -26,6 +26,13 @@ class MembersView {
     this.equipmentPoller.stop()
   }
 
+  async refreshAll() {
+    // 一覧と装備を今すぐ1回ずつ更新する(データ更新ボタン用)
+    // 一覧→装備の順(装備は一覧で分かったプレイヤーが対象のため)、各Pollerが実行中ならそちらに任せる
+    await this.statsPoller.runNow()
+    await this.equipmentPoller.runNow()
+  }
+
   async refreshStats() {
     // 一覧(HP/MP/hotbar)を取得して再描画する
     // 通信に失敗してもここでは何もしない、指定回連続で初めてAPI Deadを表示する

@@ -16,6 +16,16 @@ const SAKE_MELEE_BONUS = 10;
 // ポーションCT短縮効果の短縮率%の指定値(表示用)
 const POTION_COOLDOWN_REDUCTION_PERCENT = 25; 
 
+// ---- ビルド共有(計算機) ----
+// 共有URLのハッシュ("#calc=コード")のキー名の指定値
+const BUILD_HASH_KEY = "calc";                
+// 共有コードの形式の版の指定値(形式を変えたら上げる)
+const BUILD_CODE_VERSION = "v1";              
+// 共有コードのアクセサリー枠末尾に付けるmodifier文字の指定値
+const BUILD_MODIFIER_CODES = { menacing: "m", warding: "w" }; 
+// ヘッダーのステータス欄に一時メッセージを出しておく時間(ms)の指定値
+const STATUS_FLASH_MS = 3000;                 
+
 // ---- API取得 ----
 // {endpoint}/all/0/{limit} のlimit部分の指定値(全件取得できる大きさ)
 const API_FETCH_LIMIT = 10000;                

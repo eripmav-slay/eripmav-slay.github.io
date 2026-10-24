@@ -3,11 +3,12 @@
  * escapeHtml() は utils.js で定義されている関数
  */
 class CalculatorView {
-  constructor(dataStore, slotClassifier, container, buffRegistry) {
+  constructor(dataStore, slotClassifier, container, buffRegistry, setBonusRegistry) {
     this.dataStore = dataStore;
     this.slotClassifier = slotClassifier;
     this.container = container;
     this.buffRegistry = buffRegistry;
+    this.setBonusRegistry = setBonusRegistry;
     this.sets = { A: new ArmorSet(), B: new ArmorSet() };
   }
 
@@ -41,6 +42,9 @@ class CalculatorView {
         </div>
         ${this._renderSetPanel("B", armorPool, accessoryPool)}
       </div>
+      <div class="calc-share">
+        <button data-action="share-build">ビルドURLをコピー (copy build URL)</button>
+      </div>
       <div class="calc-result" id="calcResult"></div>
     `;
     this.renderResult();
@@ -73,14 +77,78 @@ class CalculatorView {
         </select>
       </div>`).join("");
 
-    return `<div class="calc-set"><h3>set${setId}</h3>${armorRows}
+    return `<div class="calc-set" id="calc-set-${setId}"><h3>set${setId}</h3>
+      <div class="calc-set-status" id="calc-set-status-${setId}"></div>
+      ${armorRows}
       <label class="calc-toggle">
         <input type="checkbox" ${set.sakeEnabled ? "checked" : ""} data-action="calc-sake" data-set="${setId}">
         enable sake (Def ${SAKE_DEFENSE_MODIFIER}, Melee +${SAKE_MELEE_BONUS}%)
       </label>
-      <h3 class="calc-acc-heading">アクセサリー(最大${ACCESSORY_SLOT_COUNT})</h3>
+      <h3 class="calc-acc-heading">Accessories(最大${ACCESSORY_SLOT_COUNT})</h3>
       ${accessoryRows}
     </div>`;
+  }
+
+  _renderSetStatus(setId) {
+    // セット枠の状態表示を更新 揃っていればバッジと枠の強調 頭に対応するセットがあれば装備ボタン
+    const panel = document.getElementById(`calc-set-${setId}`);
+    const box = document.getElementById(`calc-set-status-${setId}`);
+    if (!panel || !box) return;
+
+    const set = this.sets[setId];
+    const complete = set.getCompleteSet(this.setBonusRegistry);
+    const bonusText = complete ? this.setBonusRegistry.formatBonus(complete) : "";
+    panel.classList.toggle("set-active", !!bonusText);
+
+    if (complete) {
+      const bonusHtml = bonusText ? `<span class="set-bonus">${escapeHtml(bonusText)}</span>` : "";
+      box.innerHTML = `<span class="set-badge ${bonusText ? "on" : ""}">SET</span>`
+        + `<span class="set-label">${escapeHtml(complete.label)}</span>${bonusHtml}`;
+      return;
+    }
+
+    const candidates = set.head ? this.setBonusRegistry.findByHead(set.head.Name) : [];
+    box.innerHTML = candidates.map((entry, i) =>
+      `<button class="calc-preset-btn" data-action="set-preset" data-set="${setId}" data-index="${i}">`
+      + `equip set: ${escapeHtml(entry.label)}</button>`
+    ).join("");
+  }
+
+  _findArmorByName(name) {
+    // 名前が一致する防具のデータを返す(Banの有無に関係なく探す) 無ければnull
+    return Object.values(this.dataStore.armorPieces).find(a => a.Name === name) || null;
+  }
+
+  onSetPresetClick(setId, index) {
+    // 頭に対応するセットの胴/足を入力する 既に別の胴/足が入っていれば確認を出す
+    // 入力した場合はtrue 取り消しや失敗の場合はfalseを返す
+    const set = this.sets[setId];
+    const entry = set.head ? this.setBonusRegistry.findByHead(set.head.Name)[index] : null;
+    if (!entry) return false;
+
+    const body = this._findArmorByName(entry.body);
+    const legs = this._findArmorByName(entry.legs);
+    if (!body || !legs) {
+      alert(`${entry.label}\ncan't find the torso/leg data.`);
+      return false;
+    }
+
+    const banned = [body, legs].find(a => a.Banned);
+    if (banned) {
+      alert(`${banned.Name}\ncan't enter banned items into the calculator.`);
+      return false;
+    }
+
+    const overwrites = (set.body && set.body.Name !== body.Name)
+      || (set.legs && set.legs.Name !== legs.Name);
+    if (overwrites && !confirm(`\n胴/足が既に入力されています\n${entry.label}の胴/足で置き換えますか?\n(The torso/legs have already been entered.\nDo you want to replace them with the torso/legs from ${entry.label})`)) {
+      return false;
+    }
+
+    set.body = body;
+    set.legs = legs;
+    this.render();
+    return true;
   }
 
   onArmorInput(setId, slot, value) {
@@ -91,7 +159,7 @@ class CalculatorView {
       .find(a => a.Name === value && this.slotClassifier.classify(a.Name) === slot);
 
     if (match && match.Banned) {
-      alert(`${match.Name}\nBanされてるアイテムは計算機に入れられないよ`);
+      alert(`${match.Name}\nBanされてるアイテムは計算機に入れられないよ\n(can't enter banned items into the calculator.)`);
       return false;
     }
 
@@ -108,7 +176,7 @@ class CalculatorView {
 
     if (match) {
       if (match.isBanned) {
-        alert(`${match.name}\nBanされてるアイテムは計算機に入れられないよ`);
+        alert(`${match.name}\nBanされてるアイテムは計算機に入れられないよ\n(can't enter banned items into the calculator.)`);
         return false;
       }
       if (set.hasDuplicateAccessory(match.name, index)) {
@@ -138,6 +206,19 @@ class CalculatorView {
     this.renderResult();
   }
 
+  getBuildCode() {
+    // 今のセットA/Bを共有用のコード文字列にして返す
+    return BuildCodec.encode(this.sets);
+  }
+
+  loadBuild(code) {
+    // 共有コードをセットA/Bに読み込む 描画は呼び出し側(タブ切り替え)が行う
+    // BuildCodec.decodeの結果 { sets, skipped, error } をそのまま返す(error時は今のセットを変えない)
+    const result = BuildCodec.decode(code, this.dataStore, this.slotClassifier);
+    if (result.sets) this.sets = result.sets;
+    return result;
+  }
+
   copySet(fromId, toId) {
     // fromセットの内容をtoセットに、計算機タブ全体を再描画
     this.sets[toId] = this.sets[fromId].clone();
@@ -149,8 +230,8 @@ class CalculatorView {
     const box = document.getElementById("calcResult");
     if (!box) return;
 
-    const statsA = this.sets.A.sumStats();
-    const statsB = this.sets.B.sumStats();
+    const statsA = this.sets.A.sumStats(this.setBonusRegistry);
+    const statsB = this.sets.B.sumStats(this.setBonusRegistry);
     const statRows = [
       ["防御力 (Defense)", statsA.Defense, statsB.Defense],
       ["近接ダメージ% (Melee)", statsA.Melee, statsB.Melee],
@@ -161,14 +242,21 @@ class CalculatorView {
 
     const diffClass = (x, y) => x === y ? "" : (x > y ? "calc-diff-pos" : "calc-diff-neg");
 
-    let html = '<table><thead><tr><th>項目</th><th style="text-align:right;">セットA</th><th style="text-align:right;">セットB</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>項目</th><th class="th-num">セットA</th><th class="th-num">セットB</th></tr></thead><tbody>';
     if (!statRows.length) html += `<tr><td colspan="3" class="calc-misc-empty">まだ何も選ばれていないよ</td></tr>`;
+    const setA = this.sets.A.getCompleteSet(this.setBonusRegistry);
+    const setB = this.sets.B.getCompleteSet(this.setBonusRegistry);
+    if (setA || setB) {
+      const cell = entry => entry ? escapeHtml(entry.label) : "-";
+      html += `<tr class="calc-set-row"><td>セット効果 (set bonus)</td>`
+        + `<td class="num">${cell(setA)}</td><td class="num">${cell(setB)}</td></tr>`;
+    }
     statRows.forEach(([label, av, bv]) => {
       html += `<tr><td>${escapeHtml(label)}</td><td class="num ${diffClass(av, bv)}">${escapeHtml(av)}</td><td class="num ${diffClass(bv, av)}">${escapeHtml(bv)}</td></tr>`;
     });
 
-    const effectsA = this.sets.A.sumEffects();
-    const effectsB = this.sets.B.sumEffects();
+    const effectsA = this.sets.A.sumEffects(this.setBonusRegistry);
+    const effectsB = this.sets.B.sumEffects(this.setBonusRegistry);
     const effectRows = [
       ["Regen", effectsA.regen, effectsB.regen, v => `+${v}`],
       ["DR", effectsA.dr, effectsB.dr, v => `+${v}%`],
@@ -189,6 +277,9 @@ class CalculatorView {
 
     html += '</tbody></table>';
     box.innerHTML = html;
+
+    this._renderSetStatus("A");
+    this._renderSetStatus("B");
   }
 
   _renderBuffRows(buffsA, buffsB) {
@@ -197,7 +288,7 @@ class CalculatorView {
     // セルは持続時間(showDurationなkind)か「あり」、ツールチップに付与元の装備名を入れる
     const cell = (entry, kind) => {
       if (!entry) return '<td class="num">-</td>';
-      const text = kind.showDuration ? this.buffRegistry.formatDuration(entry.ms) : "enable";
+      const text = kind.showDuration ? this.buffRegistry.formatDuration(entry.ms) : "あり";
       return `<td class="num" title="${escapeHtml(entry.sources.join(", "))}">${escapeHtml(text)}</td>`;
     };
 
@@ -212,7 +303,7 @@ class CalculatorView {
       });
       if (!byId.size) return;
 
-      html += `<tr class="calc-subhead"><td colspan="3">buff/debuff: ${escapeHtml(kind.label)}</td></tr>`;
+      html += `<tr class="calc-subhead"><td colspan="3">バフ/デバフ: ${escapeHtml(kind.label)}</td></tr>`;
       [...byId.entries()]
         .sort((x, y) => this.buffRegistry.getName(x[0]).localeCompare(this.buffRegistry.getName(y[0])))
         .forEach(([id, pair]) => {

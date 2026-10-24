@@ -27,10 +27,10 @@ const BUFF_NAMES = {
 // fields: そのkindとして読むAPIのフィールド名(武器はHeldBuffs、防具/アクセサリーはEquippedBuffs)
 // showDuration: 持続時間を表示するか(所持/装備中のMillisecondsは更新間隔なので表示しない)
 const BUFF_KINDS = [
-  { key: "onHit",      label: "On Hit -> Target",  fields: ["OnHitBuffs"],                 showDuration: true },
-  { key: "onHitSelf",  label: "On Hit -> Self",    fields: ["OnHitSelfBuffs"],             showDuration: true },
-  { key: "passive",    label: "While Held/Worn",   fields: ["HeldBuffs", "EquippedBuffs"], showDuration: true },
-  { key: "onHurtSelf", label: "On Hurt -> Self",   fields: ["OnHurtSelfBuffs"],            showDuration: true }
+  { key: "onHit",      label: "On Hit ->Enemy",       fields: ["OnHitBuffs"],                 showDuration: true },
+  { key: "onHitSelf",  label: "On Hit ->Self",        fields: ["OnHitSelfBuffs"],             showDuration: true },
+  { key: "passive",    label: "Held/Equipped -> Self", fields: ["HeldBuffs", "EquippedBuffs"], showDuration: false },
+  { key: "onHurtSelf", label: "When Hit -> Self",      fields: ["OnHurtSelfBuffs"],            showDuration: true }
 ];
 
 // バフ詳細API(/buffs/{種別}/{netId}/{フィールド名})のパスに使う種別名(DataStoreのstoreKey -> API側の種別)
@@ -50,7 +50,7 @@ const BUFF_API_FIELDS = {
 
 // バフタブの「種別」列/フィルタに出すカテゴリ名(DataStoreのstoreKey -> 表示名)
 const BUFF_CATEGORY_LABELS = {
-  weapons: "weapon",
-  armorPieces: "armor",
-  accessories: "accessorie"
+  weapons: "武器(weapon)",
+  armorPieces: "防具(armor)",
+  accessories: "アクセサリー(accessorie)"
 };

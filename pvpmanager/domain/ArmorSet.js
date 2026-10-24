@@ -17,6 +17,12 @@ class ArmorSet {
     return [this.head, this.body, this.legs].filter(Boolean);
   }
 
+  getCompleteSet(setBonusRegistry) {
+    // 頭/胴/足が揃っているセット定義を返す 揃っていなければnull
+    if (!setBonusRegistry || !this.head || !this.body || !this.legs) return null;
+    return setBonusRegistry.findComplete(this.head.Name, this.body.Name, this.legs.Name);
+  }
+
   hasDuplicateAccessory(name, excludeIndex) {
     // excludeIndex以外の枠に同じ名前のアクセサリーが既に入っているかを返す(boolean)
     return this.accessories.some((a, i) => i !== excludeIndex && a && a.name === name);
@@ -27,8 +33,8 @@ class ArmorSet {
     return this.accessories.some((a, i) => i !== excludeIndex && a && a.hasWing());
   }
 
-  sumStats() {
-    // 防具+アクセサリー+modifier+sakeを全部合算したダメージ/防御ステータスを
+  sumStats(setBonusRegistry = null) {
+    // 防具+セットボーナス+アクセサリー+modifier+sakeを全部合算したダメージ/防御ステータスを
     // { Defense, Melee, Magic, Ranged, Minion } の形で返す
     const stats = { Defense: 0, Melee: 0, Magic: 0, Ranged: 0, Minion: 0 };
 
@@ -39,6 +45,14 @@ class ArmorSet {
       stats.Ranged += piece.CurrentRangedDamagePercentage || 0;
       stats.Minion += piece.CurrentMinionDamagePercentage || 0;
     });
+
+    const setEntry = this.getCompleteSet(setBonusRegistry);
+    if (setEntry) {
+      stats.Melee += setEntry.bonus.melee;
+      stats.Magic += setEntry.bonus.magic;
+      stats.Ranged += setEntry.bonus.ranged;
+      stats.Minion += setEntry.bonus.minion;
+    }
 
     this.accessories.forEach((acc, i) => {
       if (!acc) return;
@@ -67,7 +81,7 @@ class ArmorSet {
     return stats;
   }
 
-  sumEffects() {
+  sumEffects(setBonusRegistry = null) {
     // ダメージ/防御以外の効果(regen/DR/ポーション短縮/ダッシュ/飛行)をまとめて
     // { regen, dr, potionCooldown, dash, wing } の形で返す
     // 同じgroupを持つアクセサリーは複数装備しても代表1つ分の効果しか加算しない
@@ -77,6 +91,9 @@ class ArmorSet {
     this.getArmorPieces().forEach(piece => {
       if (SOLAR_FLARE_PIECE_NAMES.has(piece.Name)) effects.regen += SOLAR_FLARE_REGEN_PER_PIECE;
     });
+
+    const setEntry = this.getCompleteSet(setBonusRegistry);
+    if (setEntry) effects.dr += setEntry.bonus.dr;
 
     const applyEffect = (acc) => {
       // 1つのアクセサリーの効果をeffectsに加算する

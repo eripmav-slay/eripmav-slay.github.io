@@ -118,6 +118,7 @@ thead th{
 thead th:hover{color:var(--text);}
 thead th.sorted{color:var(--line-lit);}
 thead th .arrow{font-size:10px; margin-left:3px; opacity:.8;}
+thead th.th-num{text-align:right;}
 tbody td{padding:5px 8px; border-bottom:1px solid var(--border); white-space:nowrap; vertical-align:middle;}
 tbody tr:hover{background:var(--panel2);}
 td.name{font-weight:600; white-space:normal; min-width:140px;}
@@ -194,7 +195,8 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
   display:flex; flex-direction:column; justify-content:center; align-items:center;
   gap:8px; padding:0 4px; align-self:stretch;
 }
-.calc-copy-controls button{font-family:var(--mono); font-size:12px; padding:6px 10px;}
+.calc-copy-controls button, .calc-share button{font-family:var(--mono); font-size:12px; padding:6px 10px;}
+.calc-share{margin-top:16px; text-align:right;}
 
 .calc-result{
   margin-top:28px; background:var(--panel); border-radius:2px; overflow:hidden;
@@ -214,24 +216,27 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 }
 .calc-misc-empty{font-size:13px; color:var(--muted);}
 
-.member-main{min-width:990px;} 
+.member-main{min-width:990px; display:none;} /* 固定サイズのアイコンが収まる最小幅、これより狭くはしない。最初は非表示でタブ切り替え時にJSが表示する */
 .member-table{
-  --icon-size:36px; --icon-gap:4px; 
+  --icon-size:36px; --icon-gap:4px; /* アイコンの大きさはスライダーで変えない、変わるのは余白だけ */
   font-size:15px;
-  table-layout:fixed; 
+  table-layout:fixed; /* 列幅を中身ではなくcolで決めて、行ごとのアイコン数の差で列がズレないようにする */
 }
 .member-table th{font-size:12px;}
 .member-table td{padding:10px 8px;}
-.member-table td.num{text-align:left;} 
+.member-table td.num{text-align:left;} /* 見出しが左寄せなので数字も左寄せにして位置を揃える */
 .member-row{cursor:pointer}
 .member-row:hover{background:var(--panel2)}
 
+/* 列幅は%にして、幅が変わった時の余白を全列で按分する(合計100%) */
+/* 比率はアイコン固定サイズでの必要幅に合わせてある(name120/stat90x2/armor136/acc296/hotbar212px、合計944px) */
 .member-table col.col-name{width:12.7%;}
 .member-table col.col-stat{width:9.5%;}
 .member-table col.col-armor{width:14.4%;}
 .member-table col.col-acc{width:31.4%;}
 .member-table col.col-hotbar{width:22.5%;}
 
+/* 装備系の3列は縦の区切り線を入れて、まとまりとして見えるようにする */
 .member-table .eq-group{border-left:1px solid var(--border);}
 
 .member-stat{
@@ -243,11 +248,11 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 
 .icon-row{
   display:flex; flex-wrap:wrap; align-items:center; gap:var(--icon-gap);
-  min-height:var(--icon-size); 
+  min-height:var(--icon-size); /* アイコンが0個でも行の高さが変わらないように */
 }
 .icon-row.hotbar-grid{
-  display:grid; grid-template-columns:repeat(5, var(--icon-size)); 
-  min-height:calc(var(--icon-size) * 2 + var(--icon-gap)); 
+  display:grid; grid-template-columns:repeat(5, var(--icon-size)); /* 横5個で折り返して縦2段にする */
+  min-height:calc(var(--icon-size) * 2 + var(--icon-gap)); /* 5個以下の人も2段分の高さにして、行ごとの高さを揃える */
   align-content:center;
 }
 .hotbar-icon{
@@ -258,3 +263,24 @@ footer{padding:14px 20px; color:var(--muted); font-size:11px; border-top:1px sol
 .api-dead{color:var(--r-banned); font-weight:700; letter-spacing:.05em;}
 .eq-pending{color:var(--muted); font-family:var(--mono);}
 .eq-down{color:var(--r-banned); font-family:var(--mono); font-size:11px; letter-spacing:.03em;}
+
+.calc-set-status{
+  min-height:30px; margin:-6px 0 14px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:13px;
+}
+.calc-preset-btn{font-size:12px; padding:5px 10px; border-color:var(--line-lit);}
+.set-badge{
+  font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.05em;
+  padding:2px 8px; border:1px solid var(--muted); border-radius:2px; color:var(--muted);
+}
+.set-badge.on{color:var(--r-ok); border-color:var(--r-ok); background:color-mix(in srgb, var(--r-ok) 15%, transparent);}
+.set-label{font-weight:600;}
+.set-bonus{color:var(--r-ok); font-family:var(--mono);}
+.calc-set.set-active{
+  box-shadow:
+    0 0 0 1px var(--line-dark),
+    0 0 0 3px var(--panel),
+    0 0 0 4px var(--r-ok);
+}
+.calc-set-row td{color:var(--r-ok);}
+.width-label{font-size:12px; color:var(--muted);}
